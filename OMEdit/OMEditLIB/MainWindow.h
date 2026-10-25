@@ -485,6 +485,7 @@ private:
   QAction *mpReSimulateModelAction;
   QAction *mpReSimulateSetupAction;
   QAction *mpNewPlotWindowAction;
+  QAction *mpNewAnalysisFigureAction;
   QAction *mpNewParametricPlotWindowAction;
   QAction *mpNewArrayPlotWindowAction;
   QAction *mpNewArrayParametricPlotWindowAction;

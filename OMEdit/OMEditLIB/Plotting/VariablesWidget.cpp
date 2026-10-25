@@ -38,6 +38,10 @@
  */
 
 #include "VariablesWidget.h"
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMimeData>
+#include <QDir>
 #include "MainWindow.h"
 #include "OMC/OMCProxy.h"
 #include "Modeling/ModelWidgetContainer.h"
@@ -514,7 +518,36 @@ Qt::ItemFlags VariablesTreeModel::flags(const QModelIndex &index) const
     flags |= Qt::ItemIsEditable;
   }
 
+  if (index.column() == 0 && pVariablesTreeItem && !pVariablesTreeItem->isRootItem()
+      && !pVariablesTreeItem->isString() && !pVariablesTreeItem->rootParent()->getSimulationOptions().isInteractiveSimulation()
+      && (pVariablesTreeItem->getExistInResultFile() || pVariablesTreeItem->isMainArray())) {
+    flags |= Qt::ItemIsDragEnabled;
+  }
   return flags;
+}
+
+QStringList VariablesTreeModel::mimeTypes() const
+{
+  auto types = QAbstractItemModel::mimeTypes();
+  types.append("application/x-omedit-analysis-variable");
+  return types;
+}
+
+QMimeData* VariablesTreeModel::mimeData(const QModelIndexList &indexes) const
+{
+  QMimeData *data = QAbstractItemModel::mimeData(indexes);
+  for (const auto &index : indexes) {
+    if (index.column() != 0 || !(flags(index) & Qt::ItemIsDragEnabled)) {
+      continue;
+    }
+    auto *item = static_cast<VariablesTreeItem*>(index.internalPointer());
+    QJsonObject variable{{"file", QDir(item->getFilePath()).absoluteFilePath(item->getFileName())},
+                         {"variable", item->getPlotVariable()}, {"unit", item->getUnit()},
+                         {"displayUnit", item->getDisplayUnit()}};
+    data->setData("application/x-omedit-analysis-variable", QJsonDocument(variable).toJson(QJsonDocument::Compact));
+    break;
+  }
+  return data;
 }
 
 /*!
@@ -1451,6 +1484,8 @@ VariablesTreeView::VariablesTreeView(VariablesWidget *pVariablesWidget)
   setExpandsOnDoubleClick(false);
   setEditTriggers(QAbstractItemView::AllEditTriggers);
   setUniformRowHeights(true);
+  setDragEnabled(true);
+  setDragDropMode(QAbstractItemView::DragOnly);
 }
 
 /*!
@@ -1651,6 +1686,7 @@ void VariablesWidget::insertVariablesItemsToTree(QString fileName, QString fileP
   mpVariableTreeProxyModel->setFilterRegularExpression(QRegularExpression(""));
   // insert the plot variables
   bool updateVariables = mpVariablesTreeModel->insertVariablesItems(fileName, filePath, variablesList, simulationOptions);
+  MainWindow::instance()->getPlotWindowContainer()->refreshAnalysisFigures(QDir(filePath).absoluteFilePath(fileName));
   // update the plot variables tree
   if (updateVariables) {
     variablesUpdated();
@@ -3002,6 +3038,18 @@ void VariablesWidget::showContextMenu(QPoint point)
     connect(pGetInitDepends, SIGNAL(triggered()), mpVariablesTreeModel, SLOT(filterDependencies()));
 
     QMenu menu(this);
+    QAction *analysisAction = menu.addAction(tr("Add to Analysis Figure"));
+    analysisAction->setEnabled(!pVariablesTreeItem->isString()
+                              && !pVariablesTreeItem->rootParent()->getSimulationOptions().isInteractiveSimulation()
+                              && (pVariablesTreeItem->getExistInResultFile() || pVariablesTreeItem->isMainArray()));
+    const QString resultFile = QDir(pVariablesTreeItem->getFilePath()).absoluteFilePath(pVariablesTreeItem->getFileName());
+    const QString variable = pVariablesTreeItem->getPlotVariable();
+    const QString unit = pVariablesTreeItem->getUnit();
+    const QString displayUnit = pVariablesTreeItem->getDisplayUnit();
+    connect(analysisAction, &QAction::triggered, this, [resultFile, variable, unit, displayUnit]() {
+      MainWindow::instance()->getPlotWindowContainer()->addAnalysisVariable(resultFile, variable, unit, displayUnit);
+    });
+    menu.addSeparator();
     menu.addAction(pGetDepends);
     menu.addAction(pGetInitDepends);
 

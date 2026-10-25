@@ -6,6 +6,7 @@ project(OMEdit)
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME omedit)
 
 omc_option(OM_OMEDIT_INSTALL_RUNTIME_DLLS "Install the required runtime dll dependency DLLs to the binary directory. Valid only for Windows builds." ON)
+set(OM_OMEDIT_ANALYSIS_RUNTIME_DIR "" CACHE PATH "Pre-provisioned, validated optional analysis Python runtime directory")
 omc_option(OM_OMEDIT_ENABLE_TESTS "Enable building of OMEdit Testsuite tests." OFF)
 omc_option(OM_OMEDIT_ENABLE_ANIMATION "Enable the 3D animation windows. Needs Qt Quick 3D." ON)
 omc_option(OM_OMEDIT_DEVELOPMENT_PROFILE "Use a separate OMEdit development identity and enable local autocomplete by default." OFF)
@@ -64,4 +65,24 @@ omc_add_subdirectory(OMEditGUI)
 
 if(OM_OMEDIT_ENABLE_TESTS)
   omc_add_subdirectory(Testsuite)
+endif()
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Resources/analysis/"
+  DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/omedit/analysis"
+  FILES_MATCHING PATTERN "*.py" PATTERN "test_*" EXCLUDE PATTERN "benchmark*" EXCLUDE PATTERN "__pycache__" EXCLUDE)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/Resources/analysis/requirements.txt"
+  DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/omedit/analysis")
+if(OM_OMEDIT_ANALYSIS_RUNTIME_DIR)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  execute_process(COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_SOURCE_DIR}/tools/development/stage-analysis-runtime.py"
+    --validate-runtime "${OM_OMEDIT_ANALYSIS_RUNTIME_DIR}"
+    RESULT_VARIABLE _analysis_runtime_status OUTPUT_VARIABLE _analysis_runtime_output ERROR_VARIABLE _analysis_runtime_error
+    TIMEOUT 90)
+  if(NOT _analysis_runtime_status EQUAL 0)
+    message(FATAL_ERROR "Invalid analysis runtime: ${_analysis_runtime_output}${_analysis_runtime_error}")
+  endif()
+  install(DIRECTORY "${OM_OMEDIT_ANALYSIS_RUNTIME_DIR}/"
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/omedit/analysis/runtime" USE_SOURCE_PERMISSIONS
+    PATTERN "__pycache__" EXCLUDE)
 endif()

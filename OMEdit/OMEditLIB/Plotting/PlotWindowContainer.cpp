@@ -38,6 +38,7 @@
  */
 
 #include "PlotWindowContainer.h"
+#include "Analysis/AnalysisFigureWindow.h"
 #include "MainWindow.h"
 #include "Options/OptionsDialog.h"
 #include "Modeling/ModelWidgetContainer.h"
@@ -221,8 +222,7 @@ QMdiSubWindow* PlotWindowContainer::getDiagramSubWindowFromMdi()
  */
 bool PlotWindowContainer::isPlotWindow(QObject *pObject)
 {
-  if (pObject && 0 != pObject->objectName().compare("animationWindow")
-      && 0 != pObject->objectName().compare("diagramWindow")) {
+  if (qobject_cast<PlotWindow*>(pObject)) {
     return true;
   }
   return false;
@@ -884,4 +884,45 @@ void PlotWindowContainer::addRenameTabToSubWindowSystemMenu(QMdiSubWindow *pMdiS
   connect(pRenamePlotWindowAction, SIGNAL(triggered()), SLOT(renamePlotWindow()));
   QMenu *pMenu = pMdiSubWindow->systemMenu();
   pMenu->addAction(pRenamePlotWindowAction);
+}
+
+AnalysisFigures::AnalysisFigureWindow* PlotWindowContainer::getCurrentAnalysisFigureWindow()
+{
+  return currentSubWindow() ? qobject_cast<AnalysisFigures::AnalysisFigureWindow*>(currentSubWindow()->widget()) : nullptr;
+}
+
+AnalysisFigures::AnalysisFigureWindow* PlotWindowContainer::addAnalysisFigureWindow()
+{
+  MainWindow::instance()->switchToPlottingPerspectiveSlot();
+  auto *window = new AnalysisFigures::AnalysisFigureWindow;
+  window->setObjectName("analysisFigureWindow");
+  window->setWindowTitle(getUniqueName(tr("Analysis Figure : ")));
+  window->setAttribute(Qt::WA_DeleteOnClose);
+  auto *subWindow = addSubWindow(window);
+  subWindow->setAttribute(Qt::WA_DeleteOnClose);
+  subWindow->setWindowIcon(QIcon(":/Resources/icons/plot-window.svg"));
+  addCloseActionsToSubWindowSystemMenu(subWindow);
+  addRenameTabToSubWindowSystemMenu(subWindow);
+  window->show();
+  setActiveSubWindow(subWindow);
+  subWindow->showMaximized();
+  return window;
+}
+
+void PlotWindowContainer::addAnalysisVariable(const QString &file, const QString &variable, const QString &unit, const QString &displayUnit)
+{
+  auto *window = getCurrentAnalysisFigureWindow();
+  if (!window) {
+    window = addAnalysisFigureWindow();
+  }
+  window->addVariable(file, variable, unit, displayUnit);
+}
+
+void PlotWindowContainer::refreshAnalysisFigures(const QString &resultFile)
+{
+  for (auto *subWindow : subWindowList()) {
+    if (auto *window = qobject_cast<AnalysisFigures::AnalysisFigureWindow*>(subWindow->widget())) {
+      window->refreshResult(resultFile);
+    }
+  }
 }

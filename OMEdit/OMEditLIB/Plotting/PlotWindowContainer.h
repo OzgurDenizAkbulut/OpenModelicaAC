@@ -47,6 +47,8 @@
 #include "Util/Utilities.h"
 #include "OMPlot.h"
 
+namespace AnalysisFigures { class AnalysisFigureWindow; }
+
 class AnimationWindow;
 class DiagramWindow;
 class VariablesTreeItem;
@@ -59,6 +61,9 @@ public:
   PlotWindowContainer(QWidget *pParent = 0);
   QString getUniqueName(QString name = QString("Plot"), int number = 1);
   OMPlot::PlotWindow* getCurrentWindow();
+  AnalysisFigures::AnalysisFigureWindow* getCurrentAnalysisFigureWindow();
+  void refreshAnalysisFigures(const QString &resultFile);
+  void addAnalysisVariable(const QString &file, const QString &variable, const QString &unit, const QString &displayUnit);
   QMdiSubWindow* getPlotSubWindowFromMdi();
   OMPlot::PlotWindow* getInteractiveWindow(QString targetWindow);
 #if !defined(WITHOUT_ANIMATION)
@@ -78,6 +83,7 @@ private:
   DiagramWindow *mpDiagramWindow;
 public slots:
   OMPlot::PlotWindow* addPlotWindow();
+  AnalysisFigures::AnalysisFigureWindow* addAnalysisFigureWindow();
   void addParametricPlotWindow();
   void addArrayPlotWindow();
   void addArrayParametricPlotWindow();

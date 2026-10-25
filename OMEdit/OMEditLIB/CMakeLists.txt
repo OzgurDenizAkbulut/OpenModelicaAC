@@ -375,7 +375,17 @@ set(OMEDITLIB_SOURCES ${OMEDITLIB_SOURCES} ${OMC_SCRIPTING_API_QT_DIR}/OpenModel
 set_source_files_properties(${OMC_SCRIPTING_API_QT_DIR}/OpenModelicaScriptingAPIQt.cpp GENERATED)
 set_source_files_properties(${OMC_SCRIPTING_API_QT_DIR}/OpenModelicaScriptingAPIQt.h GENERATED)
 
+list(APPEND OMEDITLIB_SOURCES
+  Plotting/Analysis/AnalysisFigureData.cpp
+  Plotting/Analysis/AnalysisFigureWindow.cpp
+  Plotting/Analysis/AnalysisWorkerClient.cpp)
+list(APPEND OMEDITLIB_HEADERS
+  Plotting/Analysis/AnalysisFigureData.h
+  Plotting/Analysis/AnalysisFigureWindow.h
+  Plotting/Analysis/AnalysisWorkerClient.h)
 add_library(OMEditLib STATIC ${OMEDITLIB_SOURCES} ${OMEDITLIB_HEADERS} ${OMEDITLIB_TRANSLATIONS})
+set_property(SOURCE Plotting/Analysis/AnalysisWorkerClient.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+  OMEDIT_ANALYSIS_WORKER_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../Resources/analysis/analysis_worker.py")
 
 # Wait for the generated Qt API (rust_codegen); AUTOGEN_TARGET_DEPENDS so AUTOMOC waits too.
 # In the prebuilt GUI-only build (RUST_OMC_PREBUILT_CDYLIB) there is no codegen target —

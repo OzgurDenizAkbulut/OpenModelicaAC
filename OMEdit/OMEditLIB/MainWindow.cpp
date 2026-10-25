@@ -39,6 +39,7 @@
 
 #include "MainWindow.h"
 #include "Plotting/PlotWindowContainer.h"
+#include "Plotting/Analysis/AnalysisFigureWindow.h"
 #include "Modeling/ModelWidgetContainer.h"
 #include "Options/OptionsDialog.h"
 #include "Modeling/MessagesWidget.h"
@@ -1070,6 +1071,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
   SaveChangesDialog *pSaveChangesDialog = new SaveChangesDialog(this);
   if (pSaveChangesDialog->exec()) {
     if (askForExit()) {
+      for (auto *subWindow : mpPlotWindowContainer->subWindowList()) {
+        if (qobject_cast<AnalysisFigures::AnalysisFigureWindow*>(subWindow->widget()) && !subWindow->close()) {
+          event->ignore();
+          return;
+        }
+      }
       beforeClosingMainWindow();
       event->accept();
     } else {
@@ -5108,6 +5115,10 @@ void MainWindow::createActions()
   mpReSimulateSetupAction->setStatusTip(Helper::reSimulateSetupTip);
   connect(mpReSimulateSetupAction, SIGNAL(triggered()), this, SLOT(showReSimulateSetup()));
   // new plot window action
+  mpNewAnalysisFigureAction = new QAction(QIcon(":/Resources/icons/analysis-figure.svg"), tr("New Analysis Figure"), this);
+  mpNewAnalysisFigureAction->setObjectName("newAnalysisFigureAction");
+  mpNewAnalysisFigureAction->setStatusTip(tr("Create an editable 2D or 3D analysis figure"));
+  connect(mpNewAnalysisFigureAction, &QAction::triggered, mpPlotWindowContainer, &PlotWindowContainer::addAnalysisFigureWindow);
   mpNewPlotWindowAction = new QAction(QIcon(":/Resources/icons/plot-window.svg"), tr("New Plot Window"), this);
   mpNewPlotWindowAction->setStatusTip(tr("Inserts new plot window"));
   connect(mpNewPlotWindowAction, SIGNAL(triggered()), mpPlotWindowContainer, SLOT(addPlotWindow()));
@@ -5284,6 +5295,8 @@ void MainWindow::createMenus()
   pViewToolbarsMenu->addAction(mpDebuggerToolBar->toggleViewAction());
   pViewToolbarsMenu->addAction(mpOMSimulatorToolbar->toggleViewAction());
   // Add Actions to Windows View Sub Menu
+  pViewWindowsMenu->addAction(mpNewAnalysisFigureAction);
+  pViewWindowsMenu->addSeparator();
   pViewWindowsMenu->addAction(mpLibraryDockWidget->toggleViewAction());
   pViewWindowsMenu->addAction(mpElementDockWidget->toggleViewAction());
   pViewWindowsMenu->addAction(mpDocumentationDockWidget->toggleViewAction());
@@ -5812,6 +5825,7 @@ void MainWindow::createToolbars()
   mpPlotToolBar->setAllowedAreas(Qt::TopToolBarArea);
   // add actions to Plot Toolbar
   mpPlotToolBar->addAction(mpNewPlotWindowAction);
+  mpPlotToolBar->addAction(mpNewAnalysisFigureAction);
   mpPlotToolBar->addAction(mpNewParametricPlotWindowAction);
   mpPlotToolBar->addAction(mpNewArrayPlotWindowAction);
   mpPlotToolBar->addAction(mpNewArrayParametricPlotWindowAction);

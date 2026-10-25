@@ -94,6 +94,7 @@
         <file>Resources/icons/parametric-plot-window.svg</file>
         <file>Resources/icons/array-plot-window.svg</file>
         <file>Resources/icons/plot-window.svg</file>
+        <file>Resources/icons/analysis-figure.svg</file>
         <file>Resources/icons/re-simulate.svg</file>
         <file>Resources/icons/re-simulation-center.svg</file>
         <file>Resources/icons/export-variables.svg</file>
