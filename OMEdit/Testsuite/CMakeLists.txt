@@ -10,6 +10,14 @@ set(CMAKE_AUTOUIC ON)
 # have to specify --test-dir (e.g., --test-dir <build_dir>/OMEdit/Testsuite)
 enable_testing()
 
+option(OM_OMEDIT_DEVELOPMENT_TESTS_ONLY "Only configure focused autocomplete and development acceptance tests." OFF)
+add_subdirectory(LocalAutocomplete)
+add_subdirectory(DevelopmentEnvironment)
+if(OM_OMEDIT_DEVELOPMENT_TESTS_ONLY)
+  set_target_properties(LocalCompletionClientTest InlineCompletionTest PROPERTIES EXCLUDE_FROM_ALL TRUE)
+  return()
+endif()
+
 add_library(OMEditTestSuiteUtil STATIC Util/Util.cpp)
 add_library(omedit::testsuite::util ALIAS OMEditTestSuiteUtil)
 
@@ -33,7 +41,7 @@ macro(add_omedit_test test_name test_source_files)
                                                               ${CMAKE_CURRENT_BINARY_DIR}/OMEditTestResult/)
 
   # Label the tests (does not matter just now but it will of more types of tests are added.).
-  set_tests_properties(${TEST_FILE_NAME} PROPERTIES LABELS "OMEditTestsuite")
+  set_tests_properties(${test_name} PROPERTIES LABELS "OMEditTestsuite")
 
   message(STATUS "Added OMEdit test ${test_name}.")
 endmacro()

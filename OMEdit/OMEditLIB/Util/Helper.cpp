@@ -38,13 +38,14 @@
  */
 
 #include "Helper.h"
+#include "omedit_config.h"
 #include <QDir>
 
 /* Global non-translated variables */
-QString Helper::applicationName = "OMEdit";
+QString Helper::applicationName = OMEDIT_APPLICATION_NAME;
 QString Helper::applicationIntroText = "OpenModelica Connection Editor";
-QString Helper::organization = "openmodelica";  /* case-sensitive string. Don't change it. Used by ini settings file. */
-QString Helper::application = "omedit"; /* case-sensitive string. Don't change it. Used by ini settings file. */
+QString Helper::organization = OMEDIT_SETTINGS_ORGANIZATION;
+QString Helper::application = OMEDIT_SETTINGS_APPLICATION;
 // Following four variables are set once we are connected to OMC......in OMCProxy::initializeOMC().
 QString Helper::OpenModelicaVersion = "";
 QString Helper::OpenModelicaHome = "";

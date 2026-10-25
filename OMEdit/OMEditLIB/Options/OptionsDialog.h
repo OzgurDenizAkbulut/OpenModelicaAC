@@ -40,6 +40,7 @@
 #ifndef OPTIONSDIALOG_H
 #define OPTIONSDIALOG_H
 
+#include "Autocomplete/LocalCompletionSettings.h"
 #include "Util/Helper.h"
 #include "Util/Utilities.h"
 #include "Cloud/CloudTypes.h"
@@ -56,6 +57,9 @@
 #include <QLineEdit>
 #include <QHash>
 
+class AutocompletePage;
+class LocalCompletionClient;
+class QKeySequenceEdit;
 class GeneralSettingsPage;
 class LibrariesPage;
 class TextEditorPage;
@@ -134,6 +138,7 @@ public:
   void readTraceabilitySettings();
   void readLanguageServerSettings();
   void readCloudStorageSettings();
+  void readAutocompleteSettings();
   void saveGeneralSettings();
   void saveNFAPISettings();
   void saveLibrariesSettings();
@@ -150,6 +155,7 @@ public:
   void saveTraceabilitySettings();
   void saveLanguageServerSettings();
   void saveCloudStorageSettings();
+  void saveAutocompleteSettings();
   void saveGraphicalViewsSettings();
   void saveSimulationSettings();
   void saveGlobalSimulationSettings();
@@ -192,11 +198,14 @@ public:
   TraceabilityPage* getTraceabilityPage() {return mpTraceabilityPage;}
   LanguageServerPage* getLanguageServerPage() {return mpLanguageServerPage;}
   CloudStoragePage* getCloudStoragePage() {return mpCloudStoragePage;}
+  LocalCompletionSettings localCompletionSettings() const {return mLocalCompletionSettings;}
+  AutocompletePage* getAutocompletePage() {return mpAutocompletePage;}
   void emitModelicaEditorSettingsChanged() {emit modelicaEditorSettingsChanged();}
   void saveDialogGeometry();
   void show();
   TabSettings getTabSettings();
 signals:
+  void localCompletionSettingsChanged();
   void textSettingsChanged();
   void modelicaEditorSettingsChanged();
   void metaModelicaEditorSettingsChanged();
@@ -211,6 +220,8 @@ public slots:
   void saveSettings();
   void reset();
 private:
+  LocalCompletionSettings mLocalCompletionSettings;
+  AutocompletePage *mpAutocompletePage;
   bool mDetectChange;
   GeneralSettingsPage *mpGeneralSettingsPage;
   LibrariesPage *mpLibrariesPage;
@@ -256,6 +267,49 @@ private:
   QPushButton *mpOkButton;
   QPushButton *mpResetButton;
   QDialogButtonBox *mpButtonBox;
+};
+
+class AutocompletePage : public QWidget
+{
+  Q_OBJECT
+public:
+  explicit AutocompletePage(QWidget *pParent = nullptr);
+  LocalCompletionSettings settings() const;
+  void setSettings(const LocalCompletionSettings &settings);
+  void readProfiles(QSettings *pSettings);
+  void saveProfiles(QSettings *pSettings) const;
+  bool validate();
+  void cancelTest();
+private:
+  struct Profile {QString name; QString endpoint; QString model;};
+  void updatePreset();
+  void storeProfile();
+  void removeProfile();
+  QCheckBox *mpEnabledCheckBox;
+  QCheckBox *mpAutomaticCheckBox;
+  QComboBox *mpPresetComboBox;
+  QComboBox *mpProfilesComboBox;
+  QList<Profile> mProfiles;
+  QLineEdit *mpEndpointTextBox;
+  QComboBox *mpModelComboBox;
+  QKeySequenceEdit *mpShortcutEdit;
+  QPushButton *mpTestButton;
+  QPushButton *mpRefreshModelsButton;
+  QSpinBox *mpDebounceSpinBox;
+  QSpinBox *mpTimeoutSpinBox;
+  QSpinBox *mpMaxLinesSpinBox;
+  QSpinBox *mpMaxTokensSpinBox;
+  QSpinBox *mpPrefixSpinBox;
+  QSpinBox *mpSuffixSpinBox;
+  QDoubleSpinBox *mpTemperatureSpinBox;
+  QPlainTextEdit *mpInstructionsTextBox;
+  QSpinBox *mpOpacitySpinBox;
+  QCheckBox *mpItalicCheckBox;
+  QCheckBox *mpAfterDeletionCheckBox;
+  QSpinBox *mpMinimumPrefixSpinBox;
+  QComboBox *mpAcceptShortcutComboBox;
+  Label *mpStatusLabel;
+  LocalCompletionClient *mpClient;
 };
 
 class CodeColorsWidget : public QWidget

@@ -57,6 +57,7 @@ class QAction;
 class QTimer;
 class QTextCursor;
 class QTextBlock;
+class InlineCompletionController;
 
 class ModelicaEditor : public BaseEditor
 {
@@ -96,6 +97,7 @@ private:
   QString mDefinitionFallbackWord;
   QTimer *mpContentChangeTimer;
   QTimer *mpDefinitionFallbackTimer;
+  InlineCompletionController *mpInlineCompletionController;
   QString documentUri() const;
   QString documentText();
   void lspPositionForCursor(const QTextCursor &cursor, int &line, int &character);

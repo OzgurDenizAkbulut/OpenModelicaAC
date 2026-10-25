@@ -39,6 +39,7 @@
 
 #include "MainWindow.h"
 #include "Editors/BaseEditor.h"
+#include "Autocomplete/InlineCompletionPreview.h"
 #include "Options/OptionsDialog.h"
 #include "Modeling/ModelWidgetContainer.h"
 #include "Modeling/DocumentationWidget.h"
@@ -910,6 +911,11 @@ int PlainTextEdit::lineNumberAreaWidth()
   return space;
 }
 
+void PlainTextEdit::setInlineCompletionPreview(InlineCompletionPreview *pPreview)
+{
+  mpInlineCompletionPreview = pPreview;
+}
+
 /*!
  * \brief PlainTextEdit::lineNumberAreaPaintEvent
  * Activated whenever LineNumberArea Widget paint event is raised.
@@ -937,8 +943,10 @@ void PlainTextEdit::lineNumberAreaPaintEvent(QPaintEvent *event)
 
   while (block.isValid() && top <= event->rect().bottom()) {
     QTextDocument *pTextDocument = document();
-    top = bottom;
-    const qreal height = blockBoundingRect(block).height();
+    const bool inlinePreview = mpInlineCompletionPreview && mpInlineCompletionPreview->isVisible();
+    const QRectF previewRect = inlinePreview ? mpInlineCompletionPreview->sourceBlockRect(block) : QRectF();
+    top = inlinePreview ? previewRect.top() : bottom;
+    const qreal height = inlinePreview ? previewRect.height() : blockBoundingRect(block).height();
     bottom = top + height;
     QTextBlock nextBlock = block.next();
 

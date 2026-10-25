@@ -38,7 +38,9 @@
  */
 
 #include "OptionsDialog.h"
+#include "omedit_config.h"
 #include "OptionsDefaults.h"
+#include "Autocomplete/LocalCompletionClient.h"
 #include "MainWindow.h"
 #include "OMC/OMCProxy.h"
 #include "OMS/OMSProxy.h"
@@ -75,6 +77,9 @@
 #include <QMessageBox>
 #include <QColorDialog>
 #include <QButtonGroup>
+#include <QKeySequenceEdit>
+#include <QFormLayout>
+#include <QSignalBlocker>
 
 /*!
  * \class OptionsDialog
@@ -179,11 +184,14 @@ OptionsDialog::OptionsDialog(QWidget *pParent)
   mpTraceabilityPage = new TraceabilityPage(this);
   mpLanguageServerPage = new LanguageServerPage(this);
   mpCloudStoragePage = new CloudStoragePage(this);
+  mpAutocompletePage = new AutocompletePage(this);
+  connect(this, &QDialog::finished, mpAutocompletePage, &AutocompletePage::cancelTest);
   // Get the settings.
   // Don't read the settings in case we are running the testsuite. We want default OMEdit.
   if (!MainWindow::instance()->isTestsuiteRunning()) {
     readSettings();
   }
+  mLocalCompletionSettings = mpAutocompletePage->settings();
   // set up the Options Dialog
   setUpDialog();
 }
@@ -232,6 +240,7 @@ void OptionsDialog::readSettings()
   readTraceabilitySettings();
   readLanguageServerSettings();
   readCloudStorageSettings();
+  readAutocompleteSettings();
 }
 
 //! Reads the General section settings from omedit.ini
@@ -3432,6 +3441,9 @@ void OptionsDialog::addListItems()
   QListWidgetItem *pCloudStorageItem = new QListWidgetItem(mpOptionsList);
   pCloudStorageItem->setIcon(QIcon(":/Resources/icons/libraries.svg"));
   pCloudStorageItem->setText(tr("Cloud Storage"));
+  QListWidgetItem *pAutocompleteItem = new QListWidgetItem(mpOptionsList);
+  pAutocompleteItem->setIcon(QIcon(":/Resources/icons/modeltext.svg"));
+  pAutocompleteItem->setText(tr("Autocomplete"));
 }
 
 //! Creates pages for the Options Widget. The pages are created as stacked widget and are mapped with mpOptionsList.
@@ -3464,6 +3476,7 @@ void OptionsDialog::createPages()
   addPage(mpTraceabilityPage);
   addPage(mpLanguageServerPage);
   addPage(mpCloudStoragePage);
+  addPage(mpAutocompletePage);
 }
 
 void OptionsDialog::addPage(QWidget* pPage)
@@ -3538,6 +3551,10 @@ void OptionsDialog::reject()
 //! Saves the settings to omedit.ini file.
 void OptionsDialog::saveSettings()
 {
+  if (!mpAutocompletePage->validate()) {
+    mpOptionsList->setCurrentRow(mpOptionsList->count() - 1);
+    return;
+  }
   saveGeneralSettings();
   saveLibrariesSettings();
   saveTextEditorSettings();
@@ -3573,6 +3590,7 @@ void OptionsDialog::saveSettings()
   saveTraceabilitySettings();
   saveLanguageServerSettings();
   saveCloudStorageSettings();
+  saveAutocompleteSettings();
   // emit the signal so that all text editors can set settings & line wrapping mode
   emit textSettingsChanged();
   mpSettings->sync();
@@ -3600,6 +3618,462 @@ void OptionsDialog::reset()
     destroy();
   }
   delete pResetMessageBox;
+}
+
+void OptionsDialog::readAutocompleteSettings()
+{
+  LocalCompletionSettings settings;
+  settings.enabled = OM_OMEDIT_LOCAL_AUTOCOMPLETE_DEFAULT_ENABLED;
+  settings.enabled = mpSettings->value("localAutocomplete/enabled", settings.enabled).toBool();
+  settings.automatic = mpSettings->value("localAutocomplete/automatic", settings.automatic).toBool();
+  settings.endpoint = mpSettings->value("localAutocomplete/endpoint", settings.endpoint).toString();
+  settings.model = mpSettings->value("localAutocomplete/model", settings.model).toString();
+  settings.shortcut = mpSettings->value("localAutocomplete/shortcut", settings.shortcut).toString();
+  settings.debounceMs = mpSettings->value("localAutocomplete/debounceMs", settings.debounceMs).toInt();
+  settings.timeoutMs = mpSettings->value("localAutocomplete/timeoutMs", settings.timeoutMs).toInt();
+  settings.maxLines = mpSettings->value("localAutocomplete/maxLines", settings.maxLines).toInt();
+  settings.maxTokens = mpSettings->value("localAutocomplete/maxTokens", settings.maxTokens).toInt();
+  settings.prefixCharacters = mpSettings->value("localAutocomplete/prefixCharacters", settings.prefixCharacters).toInt();
+  settings.suffixCharacters = mpSettings->value("localAutocomplete/suffixCharacters", settings.suffixCharacters).toInt();
+  settings.temperature = mpSettings->value("localAutocomplete/temperature", settings.temperature).toDouble();
+  settings.instructions = mpSettings->value("localAutocomplete/instructions", settings.instructions).toString();
+  settings.ghostOpacity = mpSettings->value("localAutocomplete/ghostOpacity", settings.ghostOpacity).toInt();
+  settings.ghostItalic = mpSettings->value("localAutocomplete/ghostItalic", settings.ghostItalic).toBool();
+  settings.acceptShortcut = mpSettings->value("localAutocomplete/acceptShortcut", settings.acceptShortcut).toString();
+  settings.triggerAfterDeletion = mpSettings->value("localAutocomplete/triggerAfterDeletion", settings.triggerAfterDeletion).toBool();
+  settings.minimumPrefixLength = mpSettings->value("localAutocomplete/minimumPrefixLength", settings.minimumPrefixLength).toInt();
+  mpAutocompletePage->setSettings(settings.normalized());
+  mpAutocompletePage->readProfiles(mpSettings);
+}
+
+void OptionsDialog::saveAutocompleteSettings()
+{
+  const LocalCompletionSettings settings = mpAutocompletePage->settings();
+  mpSettings->setValue("localAutocomplete/enabled", settings.enabled);
+  mpSettings->setValue("localAutocomplete/automatic", settings.automatic);
+  mpSettings->setValue("localAutocomplete/endpoint", settings.endpoint);
+  mpSettings->setValue("localAutocomplete/model", settings.model);
+  mpSettings->setValue("localAutocomplete/shortcut", settings.shortcut);
+  mpSettings->setValue("localAutocomplete/debounceMs", settings.debounceMs);
+  mpSettings->setValue("localAutocomplete/timeoutMs", settings.timeoutMs);
+  mpSettings->setValue("localAutocomplete/maxLines", settings.maxLines);
+  mpSettings->setValue("localAutocomplete/maxTokens", settings.maxTokens);
+  mpSettings->setValue("localAutocomplete/prefixCharacters", settings.prefixCharacters);
+  mpSettings->setValue("localAutocomplete/suffixCharacters", settings.suffixCharacters);
+  mpSettings->setValue("localAutocomplete/temperature", settings.temperature);
+  mpSettings->setValue("localAutocomplete/instructions", settings.instructions);
+  mpSettings->setValue("localAutocomplete/ghostOpacity", settings.ghostOpacity);
+  mpSettings->setValue("localAutocomplete/ghostItalic", settings.ghostItalic);
+  mpSettings->setValue("localAutocomplete/acceptShortcut", settings.acceptShortcut);
+  mpSettings->setValue("localAutocomplete/triggerAfterDeletion", settings.triggerAfterDeletion);
+  mpSettings->setValue("localAutocomplete/minimumPrefixLength", settings.minimumPrefixLength);
+  mpAutocompletePage->saveProfiles(mpSettings);
+  const bool changed = !(settings == mLocalCompletionSettings);
+  mLocalCompletionSettings = settings;
+  if (changed) {
+    emit localCompletionSettingsChanged();
+  }
+}
+
+AutocompletePage::AutocompletePage(QWidget *pParent)
+  : QWidget(pParent), mpClient(new LocalCompletionClient(this))
+{
+  mpEnabledCheckBox = new QCheckBox(tr("Enable local LLM autocomplete for Modelica"));
+  mpAutomaticCheckBox = new QCheckBox(tr("Request suggestions automatically after typing"));
+  mpPresetComboBox = new QComboBox;
+  mpPresetComboBox->setObjectName("autocompleteServerPreset");
+  mpPresetComboBox->addItems({tr("Custom"), tr("Ollama"), tr("LM Studio")});
+  mpProfilesComboBox = new QComboBox;
+  mpProfilesComboBox->setObjectName("autocompleteProfiles");
+  mpProfilesComboBox->setEditable(true);
+  mpProfilesComboBox->setInsertPolicy(QComboBox::NoInsert);
+  mpProfilesComboBox->lineEdit()->setPlaceholderText(tr("Profile name"));
+  QPushButton *pStoreProfile = new QPushButton(tr("Save Profile"));
+  QPushButton *pRemoveProfile = new QPushButton(tr("Remove"));
+  pStoreProfile->setObjectName("autocompleteStoreProfile");
+  pRemoveProfile->setObjectName("autocompleteRemoveProfile");
+  pStoreProfile->setAutoDefault(false);
+  pRemoveProfile->setAutoDefault(false);
+  QHBoxLayout *pProfilesLayout = new QHBoxLayout;
+  pProfilesLayout->addWidget(mpProfilesComboBox, 1);
+  pProfilesLayout->addWidget(pStoreProfile);
+  pProfilesLayout->addWidget(pRemoveProfile);
+  mpEndpointTextBox = new QLineEdit;
+  mpEndpointTextBox->setObjectName("autocompleteEndpoint");
+  mpModelComboBox = new QComboBox;
+  mpModelComboBox->setObjectName("autocompleteModel");
+  mpModelComboBox->setEditable(true);
+  mpModelComboBox->setInsertPolicy(QComboBox::NoInsert);
+  mpModelComboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  mpRefreshModelsButton = new QPushButton(tr("Refresh Models"));
+  mpRefreshModelsButton->setObjectName("autocompleteRefreshModels");
+  mpRefreshModelsButton->setAutoDefault(false);
+  QHBoxLayout *pModelLayout = new QHBoxLayout;
+  pModelLayout->addWidget(mpModelComboBox, 1);
+  pModelLayout->addWidget(mpRefreshModelsButton);
+  mpShortcutEdit = new QKeySequenceEdit;
+  mpShortcutEdit->setObjectName("autocompleteManualShortcut");
+  mpTestButton = new QPushButton(tr("Test Connection"));
+  mpTestButton->setAutoDefault(false);
+  mpStatusLabel = new Label;
+  mpStatusLabel->setObjectName("autocompleteStatus");
+  mpStatusLabel->setWordWrap(true);
+  mpStatusLabel->setTextFormat(Qt::PlainText);
+  mpStatusLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  Label *pDescription = new Label(tr("Start the server separately on this computer and select a locally hosted FIM-compatible model. "
+                                   "Model selection does not change the Qwen FIM protocol. OMEdit does not start servers or install models. "
+                                   "Avoid the server's cloud-routing option."));
+  pDescription->setWordWrap(true);
+  Label *pBuiltIn = new Label(tr("Built-in autocomplete remains in Text Editor settings and uses Ctrl+Space. "
+                               "Escape dismisses a local suggestion."));
+  pBuiltIn->setWordWrap(true);
+  QToolButton *pAdvancedButton = new QToolButton;
+  pAdvancedButton->setObjectName("autocompleteAdvancedToggle");
+  pAdvancedButton->setText(tr("Advanced"));
+  pAdvancedButton->setCheckable(true);
+  pAdvancedButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  pAdvancedButton->setArrowType(Qt::RightArrow);
+  QWidget *pAdvancedWidget = new QWidget;
+  auto makeSpinBox = [](const char *name, int minimum, int maximum, const QString &suffix) {
+    QSpinBox *pSpinBox = new QSpinBox;
+    pSpinBox->setObjectName(name);
+    pSpinBox->setRange(minimum, maximum);
+    pSpinBox->setSuffix(suffix);
+    return pSpinBox;
+  };
+  mpDebounceSpinBox = makeSpinBox("autocompleteDelay", 50, 2000, tr(" ms"));
+  mpTimeoutSpinBox = makeSpinBox("autocompleteTimeout", 250, 60000, tr(" ms"));
+  mpMaxLinesSpinBox = makeSpinBox("autocompleteMaxLines", 1, 50, QString());
+  mpMaxLinesSpinBox->setToolTip(tr("Suggestions are hidden if their entire text cannot fit in the editor viewport."));
+  mpMaxTokensSpinBox = makeSpinBox("autocompleteMaxTokens", 1, 2048, QString());
+  mpPrefixSpinBox = makeSpinBox("autocompletePrefix", 0, 64000, tr(" characters"));
+  mpSuffixSpinBox = makeSpinBox("autocompleteSuffix", 0, 16000, tr(" characters"));
+  mpTemperatureSpinBox = new QDoubleSpinBox;
+  mpTemperatureSpinBox->setObjectName("autocompleteTemperature");
+  mpTemperatureSpinBox->setRange(0.0, 2.0);
+  mpTemperatureSpinBox->setDecimals(2);
+  mpTemperatureSpinBox->setSingleStep(0.05);
+  mpTemperatureSpinBox->setToolTip(tr("Lower values favor predictable suggestions. Zero is the default."));
+  mpInstructionsTextBox = new QPlainTextEdit;
+  mpInstructionsTextBox->setObjectName("autocompleteInstructions");
+  mpInstructionsTextBox->setPlaceholderText(tr("Optional Modelica style or coding instructions"));
+  mpInstructionsTextBox->setMaximumHeight(90);
+  mpInstructionsTextBox->setToolTip(tr("Up to 4,000 characters, sent as Modelica comments before the code context."));
+  mpOpacitySpinBox = makeSpinBox("autocompleteOpacity", 10, 90, tr(" %"));
+  mpItalicCheckBox = new QCheckBox(tr("Italic suggestion text"));
+  mpItalicCheckBox->setObjectName("autocompleteItalic");
+  mpAfterDeletionCheckBox = new QCheckBox(tr("Request suggestions after deleting text"));
+  mpAfterDeletionCheckBox->setObjectName("autocompleteAfterDeletion");
+  mpMinimumPrefixSpinBox = makeSpinBox("autocompleteMinimumPrefix", 0, 16, tr(" characters"));
+  mpMinimumPrefixSpinBox->setToolTip(tr("Zero allows any typing. Manual requests bypass this limit."));
+  mpAcceptShortcutComboBox = new QComboBox;
+  mpAcceptShortcutComboBox->setObjectName("autocompleteAcceptShortcut");
+  mpAcceptShortcutComboBox->addItem(tr("Tab"), QStringLiteral("Tab"));
+  mpAcceptShortcutComboBox->addItem(tr("Ctrl+Right"), QStringLiteral("Ctrl+Right"));
+  mpAcceptShortcutComboBox->addItem(tr("Ctrl+Return"), QStringLiteral("Ctrl+Return"));
+  QFormLayout *pAdvancedLayout = new QFormLayout(pAdvancedWidget);
+  pAdvancedLayout->addRow(tr("Typing delay:"), mpDebounceSpinBox);
+  pAdvancedLayout->addRow(tr("Request timeout:"), mpTimeoutSpinBox);
+  pAdvancedLayout->addRow(tr("Maximum suggestion lines:"), mpMaxLinesSpinBox);
+  pAdvancedLayout->addRow(tr("Maximum output tokens:"), mpMaxTokensSpinBox);
+  pAdvancedLayout->addRow(tr("Context before cursor:"), mpPrefixSpinBox);
+  pAdvancedLayout->addRow(tr("Context after cursor:"), mpSuffixSpinBox);
+  pAdvancedLayout->addRow(tr("Temperature:"), mpTemperatureSpinBox);
+  pAdvancedLayout->addRow(tr("Additional instructions:"), mpInstructionsTextBox);
+  pAdvancedLayout->addRow(tr("Suggestion opacity:"), mpOpacitySpinBox);
+  pAdvancedLayout->addRow(mpItalicCheckBox);
+  pAdvancedLayout->addRow(mpAfterDeletionCheckBox);
+  pAdvancedLayout->addRow(tr("Minimum identifier characters (automatic):"), mpMinimumPrefixSpinBox);
+  pAdvancedLayout->addRow(tr("Accept suggestion:"), mpAcceptShortcutComboBox);
+  pAdvancedWidget->hide();
+  QGridLayout *pLayout = new QGridLayout;
+  pLayout->addWidget(mpEnabledCheckBox, 0, 0, 1, 2);
+  pLayout->addWidget(pDescription, 1, 0, 1, 2);
+  pLayout->addWidget(mpAutomaticCheckBox, 2, 0, 1, 2);
+  pLayout->addWidget(new Label(tr("Server preset:")), 3, 0);
+  pLayout->addWidget(mpPresetComboBox, 3, 1);
+  pLayout->addWidget(new Label(tr("Server URL:")), 4, 0);
+  pLayout->addWidget(mpEndpointTextBox, 4, 1);
+  pLayout->addWidget(new Label(tr("FIM-compatible model:")), 5, 0);
+  pLayout->addLayout(pModelLayout, 5, 1);
+  pLayout->addWidget(new Label(tr("Server/model profile:")), 6, 0);
+  pLayout->addLayout(pProfilesLayout, 6, 1);
+  pLayout->addWidget(new Label(tr("Manual request shortcut:")), 7, 0);
+  pLayout->addWidget(mpShortcutEdit, 7, 1);
+  pLayout->addWidget(mpTestButton, 8, 0);
+  pLayout->addWidget(mpStatusLabel, 8, 1);
+  pLayout->addWidget(pAdvancedButton, 9, 0, 1, 2);
+  pLayout->addWidget(pAdvancedWidget, 10, 0, 1, 2);
+  pLayout->addWidget(pBuiltIn, 11, 0, 1, 2);
+  pLayout->setRowStretch(12, 1);
+  pLayout->setColumnStretch(1, 1);
+  setLayout(pLayout);
+  LocalCompletionSettings defaults;
+  defaults.enabled = OM_OMEDIT_LOCAL_AUTOCOMPLETE_DEFAULT_ENABLED;
+  setSettings(defaults);
+  connect(pAdvancedButton, &QToolButton::toggled, this, [pAdvancedButton, pAdvancedWidget](bool expanded) {
+    pAdvancedWidget->setVisible(expanded);
+    pAdvancedButton->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
+  });
+  connect(mpPresetComboBox, &QComboBox::activated, this, [this](int index) {
+    if (index == 1) {
+      mpEndpointTextBox->setText(QStringLiteral("http://127.0.0.1:11434/v1"));
+      mpModelComboBox->setEditText(LocalCompletionSettings().model);
+    } else if (index == 2) {
+      mpEndpointTextBox->setText(QStringLiteral("http://127.0.0.1:1234/v1"));
+      mpModelComboBox->setEditText(QString());
+      mpStatusLabel->setText(tr("Refresh Models and select a FIM-compatible local model."));
+    }
+  });
+  connect(mpProfilesComboBox, &QComboBox::activated, this, [this](int index) {
+    if (index >= 0 && index < mProfiles.size()) {
+      mpEndpointTextBox->setText(mProfiles.at(index).endpoint);
+      mpModelComboBox->setEditText(mProfiles.at(index).model);
+    }
+  });
+  connect(pStoreProfile, &QPushButton::clicked, this, &AutocompletePage::storeProfile);
+  connect(pRemoveProfile, &QPushButton::clicked, this, &AutocompletePage::removeProfile);
+  connect(mpTestButton, &QPushButton::clicked, this, [this]() {
+    cancelTest();
+    mpStatusLabel->setText(tr("Testing connection (no source code is sent)..."));
+    mpTestButton->setEnabled(false);
+    mpClient->testConnection(settings());
+  });
+  connect(mpRefreshModelsButton, &QPushButton::clicked, this, [this]() {
+    cancelTest();
+    mpStatusLabel->setText(tr("Reading models from the local server..."));
+    mpRefreshModelsButton->setEnabled(false);
+    mpClient->discoverModels(settings());
+  });
+  connect(mpClient, &LocalCompletionClient::modelsDiscovered, this, [this](const QStringList &models) {
+    mpRefreshModelsButton->setEnabled(true);
+    const QString previous = mpModelComboBox->currentText();
+    const QSignalBlocker blocker(mpModelComboBox);
+    mpModelComboBox->clear();
+    mpModelComboBox->addItems(models);
+    mpModelComboBox->setEditText(previous.isEmpty() ? models.value(0) : previous);
+    mpStatusLabel->setText(models.isEmpty() ? tr("The server advertised no models.")
+                                          : tr("Models refreshed. Select a FIM-compatible local model; model capabilities are not detected."));
+  });
+  connect(mpClient, &LocalCompletionClient::modelDiscoveryFailed, this, [this](const QString &message) {
+    mpRefreshModelsButton->setEnabled(true);
+    mpStatusLabel->setText(tr("Model refresh failed: %1").arg(message));
+  });
+  connect(mpClient, &LocalCompletionClient::connectionChecked, this, [this](bool success, const QString &message) {
+    mpTestButton->setEnabled(true);
+    mpStatusLabel->setText(success ? tr("Connection successful: %1").arg(message) : tr("Connection failed: %1").arg(message));
+  });
+  connect(mpEnabledCheckBox, &QCheckBox::toggled, this, &AutocompletePage::cancelTest);
+  connect(mpAutomaticCheckBox, &QCheckBox::toggled, this, &AutocompletePage::cancelTest);
+  connect(mpEndpointTextBox, &QLineEdit::textChanged, this, [this]() {
+    cancelTest();
+    const QString model = mpModelComboBox->currentText();
+    const QSignalBlocker blocker(mpModelComboBox);
+    mpModelComboBox->clear();
+    mpModelComboBox->setEditText(model);
+    updatePreset();
+  });
+  connect(mpModelComboBox, &QComboBox::editTextChanged, this, &AutocompletePage::cancelTest);
+  connect(mpShortcutEdit, &QKeySequenceEdit::keySequenceChanged, this, &AutocompletePage::cancelTest);
+  connect(mpTimeoutSpinBox, &QSpinBox::valueChanged, this, &AutocompletePage::cancelTest);
+}
+
+LocalCompletionSettings AutocompletePage::settings() const
+{
+  LocalCompletionSettings settings;
+  settings.enabled = mpEnabledCheckBox->isChecked();
+  settings.automatic = mpAutomaticCheckBox->isChecked();
+  settings.endpoint = mpEndpointTextBox->text().trimmed();
+  settings.model = mpModelComboBox->currentText().trimmed();
+  settings.debounceMs = mpDebounceSpinBox->value();
+  settings.timeoutMs = mpTimeoutSpinBox->value();
+  settings.maxLines = mpMaxLinesSpinBox->value();
+  settings.maxTokens = mpMaxTokensSpinBox->value();
+  settings.prefixCharacters = mpPrefixSpinBox->value();
+  settings.suffixCharacters = mpSuffixSpinBox->value();
+  settings.temperature = mpTemperatureSpinBox->value();
+  settings.instructions = mpInstructionsTextBox->toPlainText();
+  settings.ghostOpacity = mpOpacitySpinBox->value();
+  settings.ghostItalic = mpItalicCheckBox->isChecked();
+  settings.triggerAfterDeletion = mpAfterDeletionCheckBox->isChecked();
+  settings.minimumPrefixLength = mpMinimumPrefixSpinBox->value();
+  settings.shortcut = mpShortcutEdit->keySequence().toString(QKeySequence::PortableText);
+  settings.acceptShortcut = mpAcceptShortcutComboBox->currentData().toString();
+  return settings.normalized();
+}
+
+void AutocompletePage::setSettings(const LocalCompletionSettings &settings)
+{
+  const LocalCompletionSettings normalized = settings.normalized();
+  cancelTest();
+  mpEnabledCheckBox->setChecked(normalized.enabled);
+  mpAutomaticCheckBox->setChecked(normalized.automatic);
+  mpEndpointTextBox->setText(normalized.endpoint);
+  mpModelComboBox->setEditText(normalized.model);
+  mpDebounceSpinBox->setValue(normalized.debounceMs);
+  mpTimeoutSpinBox->setValue(normalized.timeoutMs);
+  mpMaxLinesSpinBox->setValue(normalized.maxLines);
+  mpMaxTokensSpinBox->setValue(normalized.maxTokens);
+  mpPrefixSpinBox->setValue(normalized.prefixCharacters);
+  mpSuffixSpinBox->setValue(normalized.suffixCharacters);
+  mpTemperatureSpinBox->setValue(normalized.temperature);
+  mpInstructionsTextBox->setPlainText(normalized.instructions);
+  mpOpacitySpinBox->setValue(normalized.ghostOpacity);
+  mpItalicCheckBox->setChecked(normalized.ghostItalic);
+  mpAfterDeletionCheckBox->setChecked(normalized.triggerAfterDeletion);
+  mpMinimumPrefixSpinBox->setValue(normalized.minimumPrefixLength);
+  mpShortcutEdit->setKeySequence(QKeySequence::fromString(normalized.shortcut, QKeySequence::PortableText));
+  mpAcceptShortcutComboBox->setCurrentIndex(mpAcceptShortcutComboBox->findData(normalized.acceptShortcut));
+  updatePreset();
+}
+
+void AutocompletePage::updatePreset()
+{
+  const QString endpoint = mpEndpointTextBox->text().trimmed();
+  const int index = endpoint == QStringLiteral("http://127.0.0.1:11434/v1") ? 1
+      : endpoint == QStringLiteral("http://127.0.0.1:1234/v1") ? 2 : 0;
+  mpPresetComboBox->setCurrentIndex(index);
+}
+
+void AutocompletePage::readProfiles(QSettings *pSettings)
+{
+  cancelTest();
+  const QSignalBlocker blocker(mpProfilesComboBox);
+  mProfiles.clear();
+  mpProfilesComboBox->clear();
+  const int count = pSettings->beginReadArray("localAutocomplete/profiles");
+  for (int index = 0; index < count; ++index) {
+    pSettings->setArrayIndex(index);
+    Profile profile = {pSettings->value("name").toString(), pSettings->value("endpoint").toString(), pSettings->value("model").toString()};
+    if (!profile.name.isEmpty() && mpProfilesComboBox->findText(profile.name) < 0) {
+      mProfiles.append(profile);
+      mpProfilesComboBox->addItem(profile.name);
+    }
+  }
+  pSettings->endArray();
+  const QString selected = pSettings->value("localAutocomplete/selectedProfile").toString();
+  mpProfilesComboBox->setCurrentIndex(mpProfilesComboBox->findText(selected));
+  mpProfilesComboBox->setEditText(selected);
+}
+
+void AutocompletePage::saveProfiles(QSettings *pSettings) const
+{
+  pSettings->remove("localAutocomplete/profiles");
+  pSettings->beginWriteArray("localAutocomplete/profiles", mProfiles.size());
+  for (int index = 0; index < mProfiles.size(); ++index) {
+    pSettings->setArrayIndex(index);
+    pSettings->setValue("name", mProfiles.at(index).name);
+    pSettings->setValue("endpoint", mProfiles.at(index).endpoint);
+    pSettings->setValue("model", mProfiles.at(index).model);
+  }
+  pSettings->endArray();
+  const QString name = mpProfilesComboBox->currentText().trimmed();
+  pSettings->setValue("localAutocomplete/selectedProfile", mpProfilesComboBox->findText(name) >= 0 ? name : QString());
+}
+
+void AutocompletePage::storeProfile()
+{
+  cancelTest();
+  const QString name = mpProfilesComboBox->currentText().trimmed();
+  const LocalCompletionSettings current = settings();
+  QUrl endpoint;
+  QString error;
+  if (name.isEmpty()) {
+    mpStatusLabel->setText(tr("Enter a name for the server/model profile."));
+    return;
+  }
+  if (!LocalCompletionClient::normalizeEndpoint(current.endpoint, &endpoint, &error) || current.model.isEmpty()) {
+    mpStatusLabel->setText(error.isEmpty() ? tr("Enter a model identifier before saving a profile.") : error);
+    return;
+  }
+  const int index = mpProfilesComboBox->findText(name);
+  const Profile profile = {name, current.endpoint, current.model};
+  if (index >= 0) {
+    mProfiles[index] = profile;
+  } else {
+    mProfiles.append(profile);
+    mpProfilesComboBox->addItem(name);
+  }
+  mpProfilesComboBox->setCurrentIndex(mpProfilesComboBox->findText(name));
+  mpStatusLabel->setText(tr("Profile updated. Choose OK to save it, or Cancel to discard profile changes."));
+}
+
+void AutocompletePage::removeProfile()
+{
+  cancelTest();
+  const int index = mpProfilesComboBox->findText(mpProfilesComboBox->currentText());
+  if (index >= 0) {
+    mProfiles.removeAt(index);
+    mpProfilesComboBox->removeItem(index);
+    mpProfilesComboBox->setCurrentIndex(-1);
+    mpProfilesComboBox->setEditText(QString());
+    mpStatusLabel->setText(tr("Profile removed. Choose OK to save the change."));
+  }
+}
+
+bool AutocompletePage::validate()
+{
+  const LocalCompletionSettings current = settings();
+  if (mpInstructionsTextBox->toPlainText().size() > 4000) {
+    findChild<QToolButton *>("autocompleteAdvancedToggle")->setChecked(true);
+    mpStatusLabel->setText(tr("Additional instructions must contain at most 4,000 characters."));
+    mpInstructionsTextBox->setFocus();
+    return false;
+  }
+  if (!current.enabled) {
+    return true;
+  }
+  QUrl endpoint;
+  QString error;
+  if (!LocalCompletionClient::normalizeEndpoint(current.endpoint, &endpoint, &error)) {
+    mpStatusLabel->setText(error);
+    mpEndpointTextBox->setFocus();
+    return false;
+  }
+  if (current.model.isEmpty()) {
+    mpStatusLabel->setText(tr("Enter a model identifier before enabling local autocomplete."));
+    mpModelComboBox->setFocus();
+    return false;
+  }
+  const QKeySequence shortcut = mpShortcutEdit->keySequence();
+  if (shortcut == QKeySequence::fromString(current.acceptShortcut, QKeySequence::PortableText)) {
+    mpStatusLabel->setText(tr("Manual request and accept suggestion shortcuts must be different."));
+    mpShortcutEdit->setFocus();
+    return false;
+  }
+  if (shortcut.isEmpty() || shortcut.count() != 1) {
+    mpStatusLabel->setText(tr("Choose a single key combination for manual requests."));
+    mpShortcutEdit->setFocus();
+    return false;
+  }
+  if (!(shortcut[0].keyboardModifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+    mpStatusLabel->setText(tr("The manual shortcut must include Ctrl, Alt, or Meta to preserve normal typing and navigation."));
+    mpShortcutEdit->setFocus();
+    return false;
+  }
+  QList<QKeySequence> reserved = {QKeySequence(Qt::CTRL | Qt::Key_Space), QKeySequence(Qt::Key_Tab), QKeySequence(Qt::Key_Escape),
+                                  QKeySequence(Qt::CTRL | Qt::Key_L), QKeySequence(Qt::CTRL | Qt::Key_K),
+                                  QKeySequence(Qt::CTRL | Qt::Key_F)};
+  const QKeySequence::StandardKey editingKeys[] = {QKeySequence::Copy, QKeySequence::Cut, QKeySequence::Paste,
+                                                 QKeySequence::Undo, QKeySequence::Redo, QKeySequence::SelectAll,
+                                                 QKeySequence::Find, QKeySequence::Save};
+  for (const QKeySequence::StandardKey key : editingKeys) {
+    reserved.append(QKeySequence::keyBindings(key));
+  }
+  if (reserved.contains(shortcut)) {
+    mpStatusLabel->setText(tr("This shortcut is reserved for built-in completion or editing. Choose another shortcut."));
+    mpShortcutEdit->setFocus();
+    return false;
+  }
+  return true;
+}
+
+void AutocompletePage::cancelTest()
+{
+  mpClient->cancel();
+  mpTestButton->setEnabled(true);
+  mpRefreshModelsButton->setEnabled(true);
+  mpStatusLabel->setText(QString());
 }
 
 CodeColorsWidget::CodeColorsWidget(QWidget *pParent)

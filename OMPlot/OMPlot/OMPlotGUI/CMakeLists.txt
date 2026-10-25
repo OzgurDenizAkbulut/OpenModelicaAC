@@ -68,15 +68,21 @@ omc_install_gui_client(OMPlot)
 
 if(MINGW)
   omc_get_msys_prefix(MSYSTEM_PREFIX_ESCAPED)
+  set(OM_QT_DEPLOYMENT_PREFIX "${MSYSTEM_PREFIX_ESCAPED}" CACHE PATH "Qt SDK prefix used to deploy Windows GUI dependencies.")
+  file(TO_CMAKE_PATH "${OM_QT_DEPLOYMENT_PREFIX}" OM_QT_DEPLOYMENT_PREFIX)
 
   # Find windeployqt6
-  find_program(WINDEPLOYQT_EXECUTABLE
+  find_program(_omplot_windeployqt
     NAMES windeployqt windeployqt6
-    HINTS "${MSYSTEM_PREFIX_ESCAPED}/bin"
+    PATHS "${OM_QT_DEPLOYMENT_PREFIX}/bin"
+    NO_DEFAULT_PATH
     REQUIRED
   )
+  set(WINDEPLOYQT_EXECUTABLE "${_omplot_windeployqt}")
+  unset(_omplot_windeployqt CACHE)
 
   install(CODE "
+    set(ENV{PATH} \"${OM_QT_DEPLOYMENT_PREFIX}/bin;${OM_QT_DEPLOYMENT_PREFIX}/share/qt6/bin;\$ENV{PATH}\")
     message(STATUS \"Running windeployqt6 on OMPlot...\")
     execute_process(
       COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"

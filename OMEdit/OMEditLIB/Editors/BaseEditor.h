@@ -49,6 +49,7 @@
 #include <QToolButton>
 #include <QStandardItemModel>
 #include <QList>
+#include <QPointer>
 
 class ModelWidget;
 class InfoBar;
@@ -245,6 +246,8 @@ Q_DECLARE_METATYPE(CompleterItem)
 
 class BaseEditor;
 class QCompleter;
+class InlineCompletionPreview;
+
 class PlainTextEdit : public QPlainTextEdit
 {
   Q_OBJECT
@@ -265,6 +268,7 @@ public:
   void goToLineNumber(int lineNumber);
   void moveToNavigationPoint(int position);
   QCompleter *completer();
+  void setInlineCompletionPreview(InlineCompletionPreview *pPreview);
   bool isUndoAvailable() {return mIsUndoAvailable;}
   bool isRedoAvailable() {return mIsRedoAvailable;}
   void setCompletionCharacters(QString chars) { mCompletionCharacters = chars; }
@@ -272,6 +276,7 @@ public:
   BaseEditor *getBaseEditor() const {return mpBaseEditor;}
 private:
   BaseEditor *mpBaseEditor;
+  QPointer<InlineCompletionPreview> mpInlineCompletionPreview;
   LineNumberArea *mpLineNumberArea;
   bool mCanHaveBreakpoints;
   QTextCharFormat mParenthesesMatchFormat;

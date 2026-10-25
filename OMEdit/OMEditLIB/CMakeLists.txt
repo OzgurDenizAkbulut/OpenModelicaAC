@@ -18,6 +18,9 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 set(OMEDITLIB_SOURCES LSP/LSPClient.cpp
+                      Autocomplete/LocalCompletionClient.cpp
+                      Autocomplete/InlineCompletionController.cpp
+                      Autocomplete/InlineCompletionPreview.cpp
                       LSP/LSPFileWatcher.cpp
                       LSP/ModelicaLSPClient.cpp
                       Util/Helper.cpp
@@ -175,6 +178,10 @@ set(OMEDITLIB_ANIMATION_SOURCES Animation/AbstractAnimationWindow.cpp
                                 Animation/Vector.cpp)
 
 set(OMEDITLIB_HEADERS LSP/LSPClient.h
+                      Autocomplete/LocalCompletionSettings.h
+                      Autocomplete/LocalCompletionClient.h
+                      Autocomplete/InlineCompletionController.h
+                      Autocomplete/InlineCompletionPreview.h
                       LSP/LSPFileWatcher.h
                       LSP/ModelicaLSPClient.h
                       LSP/LSPProtocol.h

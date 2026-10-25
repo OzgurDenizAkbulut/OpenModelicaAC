@@ -39,6 +39,7 @@
 
 #include "MCP/MCPServer.h"
 #include "OMEditApplication.h"
+#include "omedit_config.h"
 #include "Util/Utilities.h"
 #include "Util/Style.h"
 #include "Util/Helper.h"
@@ -167,6 +168,11 @@ namespace {
 OMEditApplication::OMEditApplication(int &argc, char **argv, threadData_t* threadData, bool testsuiteRunning)
   : QApplication(argc, argv)
 {
+#if OM_OMEDIT_DEVELOPMENT_PROFILE
+  setApplicationName(Helper::application);
+  setApplicationDisplayName(Helper::applicationName);
+  setOrganizationName(Helper::organization);
+#endif
 #if defined(__EMSCRIPTEN__)
   // Build stamp in the console (stale-artifact diagnosis).
   EM_ASM({ console.log("[OMEdit-wasm] build " + UTF8ToString($0) + " " + UTF8ToString($1)); }, __DATE__, __TIME__);

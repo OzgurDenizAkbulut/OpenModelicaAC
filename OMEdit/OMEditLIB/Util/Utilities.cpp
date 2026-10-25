@@ -38,6 +38,7 @@
  */
 
 #include "Utilities.h"
+#include "omedit_config.h"
 #include "Style.h"
 #include "Helper.h"
 #if defined(__EMSCRIPTEN__)
@@ -823,6 +824,9 @@ QString& Utilities::tempDirectory()
 #else // UNIX environment
     char *user = getenv("USER");
     tmpPath = QDir::tempPath() + "/OpenModelica_" + QString(user ? user : "nobody") + "/OMEdit/";
+#endif
+#if OM_OMEDIT_DEVELOPMENT_PROFILE
+    tmpPath += Helper::application + "/";
 #endif
     tmpPath.remove("\"");
   }

@@ -31,6 +31,8 @@ if(OM_OMEDIT_INSTALL_RUNTIME_DLLS AND MINGW)
   endif()
 
   omc_get_msys_prefix(MSYSTEM_PREFIX_ESCAPED)
+  set(OM_QT_DEPLOYMENT_PREFIX "${MSYSTEM_PREFIX_ESCAPED}" CACHE PATH "Qt SDK prefix used to deploy Windows GUI dependencies.")
+  file(TO_CMAKE_PATH "${OM_QT_DEPLOYMENT_PREFIX}" OM_QT_DEPLOYMENT_PREFIX)
 
   # TODO: This is stupid, but I can't get install with RUNTIME_DEPENDENCIES to run.
   # It needs to link to libs that are installed to ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR},
@@ -45,37 +47,40 @@ if(OM_OMEDIT_INSTALL_RUNTIME_DLLS AND MINGW)
 
   # TODO: OMPlot should add this? Or OMEdit needs to link to it directly?
   install(FILES
-          ${MSYSTEM_PREFIX_ESCAPED}/bin/Qt6OpenGL.dll
+          "${OM_QT_DEPLOYMENT_PREFIX}/bin/Qt6OpenGL.dll"
           TYPE BIN)
 
-  message(STATUS "Looking for runtime dependencies of OMEdit in ${MSYSTEM_PREFIX_ESCAPED}/bin ${RUNTIME_LIB_DIRS}")
+  message(STATUS "Looking for runtime dependencies of OMEdit in ${OM_QT_DEPLOYMENT_PREFIX}/bin ${MSYSTEM_PREFIX_ESCAPED}/bin ${RUNTIME_LIB_DIRS}")
 
   if(NOT ${CMAKE_VERSION} VERSION_LESS "4.3")
     cmake_policy(SET CMP0207 NEW)
   endif()
   install(TARGETS OMEdit
           RUNTIME_DEPENDENCIES
-            DIRECTORIES ${MSYSTEM_PREFIX_ESCAPED}/bin ${RUNTIME_LIB_DIRS}
+            DIRECTORIES "${OM_QT_DEPLOYMENT_PREFIX}/bin" "${MSYSTEM_PREFIX_ESCAPED}/bin" ${RUNTIME_LIB_DIRS}
             PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
             POST_EXCLUDE_REGEXES ".*system32/.*\\.dll")
 
   # Find windeployqt6
-  find_program(WINDEPLOYQT_EXECUTABLE
+  find_program(_omedit_windeployqt
     NAMES windeployqt windeployqt6
-    HINTS "${MSYSTEM_PREFIX_ESCAPED}/bin"
+    PATHS "${OM_QT_DEPLOYMENT_PREFIX}/bin"
+    NO_DEFAULT_PATH
     REQUIRED
   )
+  set(WINDEPLOYQT_EXECUTABLE "${_omedit_windeployqt}")
+  unset(_omedit_windeployqt CACHE)
 
   install(CODE "
     # windeployqt invokes qmlimportscanner, which lives in share/qt6/bin of
-    # the MSYS prefix rather than bin, so put it on PATH for the subprocess.
-    set(ENV{PATH} \"${MSYSTEM_PREFIX_ESCAPED}/share/qt6/bin;\$ENV{PATH}\")
+    # the SDK prefix rather than bin, so put it on PATH for the subprocess.
+    set(ENV{PATH} \"${OM_QT_DEPLOYMENT_PREFIX}/bin;${OM_QT_DEPLOYMENT_PREFIX}/share/qt6/bin;\$ENV{PATH}\")
     message(STATUS \"Running windeployqt6 on OMEdit...\")
     execute_process(
       COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"
         --no-compiler-runtime
         --no-system-d3d-compiler
-        --qmldir \"${MSYSTEM_PREFIX_ESCAPED}/share/qt6/qml\"
+        --qmldir \"${OM_QT_DEPLOYMENT_PREFIX}/share/qt6/qml\"
         --libdir \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
         --translationdir \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/share/qt6/translations\"
         \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/OMEdit.exe\"
@@ -88,6 +93,35 @@ if(OM_OMEDIT_INSTALL_RUNTIME_DLLS AND MINGW)
     endif()
     message(STATUS \"windeployqt6 output: \${WINDEPLOYQT_OUTPUT}\")
   ")
+
+  # WebEngine imported through SDK adapters may not be recognized by windeployqt.
+  find_file(_omedit_webengine_process QtWebEngineProcess.exe
+    PATHS "${OM_QT_DEPLOYMENT_PREFIX}/share/qt6/bin"
+          "${OM_QT_DEPLOYMENT_PREFIX}/bin" "${OM_QT_DEPLOYMENT_PREFIX}/libexec"
+    NO_DEFAULT_PATH REQUIRED)
+  find_path(_omedit_webengine_resources qtwebengine_resources.pak
+    PATHS "${OM_QT_DEPLOYMENT_PREFIX}/share/qt6/resources" "${OM_QT_DEPLOYMENT_PREFIX}/resources"
+    NO_DEFAULT_PATH REQUIRED)
+  find_path(_omedit_webengine_locales en-US.pak
+    PATHS "${OM_QT_DEPLOYMENT_PREFIX}/share/qt6/translations/qtwebengine_locales"
+          "${OM_QT_DEPLOYMENT_PREFIX}/translations/qtwebengine_locales"
+    NO_DEFAULT_PATH REQUIRED)
+  if(OM_OMEDIT_ENABLE_TESTS)
+    find_file(_omedit_qt_offscreen qoffscreen.dll
+      PATHS "${OM_QT_DEPLOYMENT_PREFIX}/share/qt6/plugins/platforms"
+            "${OM_QT_DEPLOYMENT_PREFIX}/plugins/platforms"
+      NO_DEFAULT_PATH REQUIRED)
+    install(FILES "${_omedit_qt_offscreen}" DESTINATION "${CMAKE_INSTALL_BINDIR}/platforms")
+    unset(_omedit_qt_offscreen CACHE)
+  endif()
+  install(PROGRAMS "${_omedit_webengine_process}" DESTINATION "${CMAKE_INSTALL_BINDIR}")
+  install(DIRECTORY "${_omedit_webengine_resources}/" DESTINATION "${CMAKE_INSTALL_BINDIR}/resources")
+  install(DIRECTORY "${_omedit_webengine_locales}/"
+          DESTINATION "${CMAKE_INSTALL_BINDIR}/share/qt6/translations/qtwebengine_locales")
+  foreach(asset _omedit_webengine_process _omedit_webengine_resources _omedit_webengine_locales)
+    unset(${asset} CACHE)
+  endforeach()
+  install(CODE "file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/qt.conf\" \"[Paths]\\nPrefix=.\\nBinaries=.\\nLibraries=.\\nLibraryExecutables=.\\nPlugins=.\\nQmlImports=qml\\nTranslations=share/qt6/translations\\nData=.\\nArchData=.\\n\")")
 elseif(OM_OMEDIT_INSTALL_RUNTIME_DLLS AND MSVC AND CMAKE_CROSSCOMPILING)
   # Cross (clang-cl) deploy: windeployqt can't run here (it's a Windows binary and
   # the msvc Qt kit ships no ICU, so Qt6Core won't load even under wine), so walk

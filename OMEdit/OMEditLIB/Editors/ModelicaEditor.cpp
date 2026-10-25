@@ -44,6 +44,7 @@
 #include "Modeling/LibraryTreeWidget.h"
 #include "Modeling/ModelWidgetContainer.h"
 #include "Options/OptionsDialog.h"
+#include "Autocomplete/InlineCompletionController.h"
 #include "Debugger/Breakpoints/BreakpointMarker.h"
 #include "Util/Helper.h"
 #include "Util/NavigationManager.h"
@@ -87,6 +88,13 @@ ModelicaEditor::ModelicaEditor(QWidget *pParent)
 {
   mpPlainTextEdit->setCanHaveBreakpoints(true);
   mpPlainTextEdit->setCompletionCharacters(".");
+  mpInlineCompletionController = new InlineCompletionController(mpPlainTextEdit, mpPlainTextEdit->completer(), this);
+  mpPlainTextEdit->setInlineCompletionPreview(mpInlineCompletionController->preview());
+  OptionsDialog *pOptionsDialog = OptionsDialog::instance();
+  mpInlineCompletionController->setSettings(pOptionsDialog->localCompletionSettings());
+  connect(pOptionsDialog, &OptionsDialog::localCompletionSettingsChanged, this, [this, pOptionsDialog]() {
+    mpInlineCompletionController->setSettings(pOptionsDialog->localCompletionSettings());
+  });
 #if !defined(__EMSCRIPTEN__)
   /* set the document marker */
   if (isModelicaModelInPackageOneFile()) {

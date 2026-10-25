@@ -31,6 +31,30 @@ dependencies of OMEdit are ready. Then follow these steps,
     shared libraries next to it.
   - Compile/debug OMEdit.
 
+### Separate development profile
+
+For the validated Windows 1.28 environment, see the
+[developer checklist](../doc/OMEdit-1.28-development.md#developer-checklist),
+[lessons learned](../doc/OMEdit-1.28-development.md#lessons-learned), and build,
+validation and launch commands in the same guide.
+
+Configure a fresh top-level build with `-DOM_OMEDIT_DEVELOPMENT_PROFILE=ON`
+and a separate `CMAKE_INSTALL_PREFIX` to build **OMEdit AC (Development)**.
+Its preferences use `openmodelica-ac/omedit-development.ini`, and its temporary
+files use a separate `omedit-development` directory under the normal OMEdit
+temporary directory. Official OMEdit preferences are not imported.
+
+Local LLM autocomplete is enabled by default in this profile; saved preferences
+still take precedence. Start a compatible local completion server separately.
+Normal builds keep the stock identity and disabled local autocomplete default.
+
+The defaults can be overridden with `OM_OMEDIT_APPLICATION_NAME`,
+`OM_OMEDIT_SETTINGS_ORGANIZATION`, `OM_OMEDIT_SETTINGS_APPLICATION` and
+`OM_OMEDIT_LOCAL_AUTOCOMPLETE_DEFAULT_ENABLED`. Empty cache values follow the
+selected profile, including when the profile changes in an existing build.
+Explicit overrides persist across profile changes. Keep the settings identifiers
+stable across development versions.
+
 ## Coding Style
 
   - 2 spaces not tab
