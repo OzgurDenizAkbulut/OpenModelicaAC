@@ -3,6 +3,7 @@ param(
   [Parameter(Mandatory=$true)][string]$Install,
   [Parameter(Mandatory=$true)][string]$Output,
   [ValidatePattern('^[0-9a-fA-F]{10,40}$')][string]$ExpectedRevision,
+  [ValidatePattern('^[0-9a-fA-F]{10,40}$')][string]$ExpectedCompilerRevision = '40d9aae9b8',
   [string]$ModelicaLibraryPath,
   [string]$OriginalRoaming,
   [string]$OriginalUserProfile,
@@ -88,6 +89,7 @@ foreach ($root in @($additionalRoots | Select-Object -Unique)) {
 }
 $report = @{ status='failed'; install=$candidate; modules=@(); enumeration_errors=@(); owned_processes=@() }
 $report.expected_revision = $ExpectedRevision
+$report.expected_compiler_revision = $ExpectedCompilerRevision
 $report.manifest_revision = $manifest.head
 $report.settings_mode = 'Native Windows Qt known-folder settings; original roaming and probe candidate roots audited. Environment-only isolation is not assumed. Existing development application settings abort the probe; first-launch defaults may be created.'
 $report.original_roaming = $OriginalRoaming
@@ -136,7 +138,7 @@ try {
   $communication = Join-Path $env:TEMP "OpenModelica/OMEdit/$application/omeditcommunication.log"
   if (-not (Test-Path -LiteralPath $communication -PathType Leaf)) { throw 'Normal startup communication log was not created.' }
   $report.communication_log = $communication
-  if (-not (Select-String -LiteralPath $communication -SimpleMatch ($manifest.head.Substring(0, 10)) -Quiet)) {
+  if (-not (Select-String -LiteralPath $communication -SimpleMatch $ExpectedCompilerRevision -Quiet)) {
     throw 'Startup communication log does not yet identify the pinned compiler revision.'
   }
   $startupErrors = @(Select-String -LiteralPath $communication -Pattern 'Unknown debug flag|undefined symbol|procedure entry point|Could not load|Failed to load builtin|\bError:\s|ErrorLevel\.(error|internal)\b' | ForEach-Object Line)

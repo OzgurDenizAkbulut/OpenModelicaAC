@@ -388,9 +388,14 @@ Repeat affected acceptance checks after changes that alter behavior or deploymen
 ## Deliberate baseline updates and remaining work
 
 The build script records the current checkout revision; it does not fetch or
-enforce the pinned HEAD. The launcher currently defaults `-ExpectedRevision` to
-the full baseline hash, and validation defaults `--expected-revision` to
-`40d9aae9b8` and `--expected-version` to `1.28.0-dev`.
+enforce the upstream source base. The launcher and startup probe default
+`-ExpectedRevision` to the current checkout commit. Compiler validation defaults
+`--expected-revision` to `40d9aae9b8` and `--expected-version` to `1.28.0-dev`;
+these check the configured compiler version rather than the local feature
+checkpoint. The optional normal-startup check uses the checkout commit for its
+separate installed-manifest comparison.
+The standalone startup probe accepts `-ExpectedCompilerRevision` for its
+communication-log check; its default is the configured `40d9aae9b8` base.
 
 For a future baseline update, preserve/review local autocomplete changes, select
 the source revision and submodule pins deliberately, prepare a fresh candidate
@@ -398,9 +403,10 @@ build location, then rebuild and repeat acceptance before changing the adopted
 launcher. The current wrapper's candidate directory is fixed in its source;
 choosing a different fresh location requires updating that configuration.
 `-ExpectedRevision <full-hash>` on the launcher and `--expected-revision <hash>`
-on validation permit an explicitly reviewed alternative baseline; neither option
-updates sources, rebuilds binaries or substitutes for validation. Update the
-documented default pin only when the new baseline is accepted.
+on compiler validation permit an explicitly reviewed alternative baseline;
+neither option updates sources, rebuilds binaries or substitutes for validation.
+Refresh the installed manifest after local commits. Change the compiler-version
+default only when adopting and validating a different upstream source base.
 
 Windows installer creation is the next milestone. No installer, file-association
 change, macOS distribution or macOS packaging has been delivered by this work.

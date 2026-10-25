@@ -339,7 +339,8 @@ closeSimulationResultFile(); getErrorString();
                 source_revision = subprocess.check_output(
                     ["git", "-C", str(Path(__file__).resolve().parents[2]), "rev-parse", "HEAD"],
                     text=True, timeout=15).strip()
-                command.extend(["-ExpectedRevision", source_revision])
+                command.extend(["-ExpectedRevision", source_revision,
+                                "-ExpectedCompilerRevision", args.expected_revision])
                 if os.environ.get("APPDATA"):
                     command.extend(["-OriginalRoaming", os.environ["APPDATA"]])
                 if os.environ.get("USERPROFILE"):
