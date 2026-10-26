@@ -22,6 +22,15 @@ brew info --json=v2 --installed > "$build/logs/brew-provenance.json"
 export PATH="$(brew --prefix openjdk)/bin:$(brew --prefix qt)/bin:$PATH"
 export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 export CCACHE_DIR="$build/ccache"
+brew list --versions qtbase qtwebengine qtdeclarative qt5compat qtsvg libiconv gettext > "$build/logs/native-dependency-versions.txt"
+if [ -f "$build/install_cmake/fst-build-provenance.json" ]; then
+  cmp "$build/logs/native-dependency-versions.txt" "$build/install_cmake/fst-native-dependency-versions.txt" || {
+    echo 'Cached native dependency versions differ; bump the workflow cache version.' >&2
+    exit 1
+  }
+  echo 'Reusing the previously compiled and tested native installation.'
+  exit 0
+fi
 export UV_PYTHON_INSTALL_DIR="$build/python-download"
 uv python install 3.12
 py=$(uv python find --managed-python 3.12)
@@ -52,6 +61,16 @@ cmake -S . -B "$build" -G Ninja \
 cmake --build "$build" --target install --parallel 2
 cmake --build "$build" --target LocalCompletionClientTest InlineCompletionTest --parallel 2
 ctest --test-dir "$build/OMEdit/Testsuite" -R '^(LocalCompletionClientTest|InlineCompletionTest)$' --output-on-failure --no-tests=error
+python3 - "$build/install_cmake" <<'PY'
+import json, pathlib, subprocess, sys
+revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+(pathlib.Path(sys.argv[1]) / 'fst-build-provenance.json').write_text(json.dumps({
+    'source_revision': revision, 'tests': ['LocalCompletionClientTest', 'InlineCompletionTest']}, indent=2))
+PY
+cp "$build/logs/native-dependency-versions.txt" "$build/install_cmake/fst-native-dependency-versions.txt"
+if [ "${1:-}" = --build-only ]; then
+  exit 0
+fi
 python3 tools/development/package-macos-distribution.py --install "$build/install_cmake" --output "$build/package" --qt "$(brew --prefix qt)"
 mkdir -p "$build/distribution"
 cp "$build/package/"*.dmg "$build/package/"*.sha256 "$build/package/manifest.json" "$build/distribution/"

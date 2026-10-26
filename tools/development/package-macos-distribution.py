@@ -28,8 +28,9 @@ def macho(path):
 
 
 def dependencies(path):
-    return [line.strip().split(' (compatibility version', 1)[0]
-            for line in run('otool', '-L', path).splitlines()[1:]]
+    identity = run('otool', '-D', path).splitlines()[1:]
+    return [dep for line in run('otool', '-L', path).splitlines()[1:]
+            if (dep := line.strip().split(' (compatibility version', 1)[0]) not in identity]
 
 
 def relocate(app):
@@ -57,16 +58,23 @@ def relocate(app):
                     target = source
                 else:
                     if '.framework/' in dep:
-                        raise RuntimeError(f'Qt deployment left an external framework: {dep}')
-                    target = frameworks / source.name
-                    if target in copied and copied[target] != source.resolve():
-                        raise RuntimeError(f'Conflicting dependency names: {dep}')
-                    if not target.exists():
-                        shutil.copy2(source.resolve(strict=True), target)
-                    copied[target] = source.resolve()
+                        root, relative = dep.split('.framework/', 1)
+                        framework = Path(root + '.framework')
+                        target = frameworks / framework.name / relative
+                        if not (frameworks / framework.name).exists():
+                            shutil.copytree(framework, frameworks / framework.name, symlinks=True)
+                        if not target.is_file():
+                            raise RuntimeError(f'Incomplete framework deployment: {dep}')
+                    else:
+                        target = frameworks / source.name
+                        if target in copied and copied[target] != source.resolve():
+                            raise RuntimeError(f'Conflicting dependency names: {dep}')
+                        if not target.exists():
+                            shutil.copy2(source.resolve(strict=True), target)
+                        copied[target] = source.resolve()
                 replacement = '@loader_path/' + os.path.relpath(target, binary.parent)
                 run('install_name_tool', '-change', dep, replacement, binary)
-            if binary.suffix in ('.dylib', '.so'):
+            if run('otool', '-D', binary).splitlines()[1:]:
                 run('install_name_tool', '-id', '@loader_path/' + binary.name, binary)
     return visited
 
@@ -183,6 +191,8 @@ def main():
                 dest = licenses / prefix.parent.name / path.name
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(path, dest)
+            elif path.is_dir() and path.name.upper() in ('LICENSES', 'LICENSE'):
+                shutil.copytree(path, licenses / prefix.parent.name / path.name, dirs_exist_ok=True)
     run('codesign', '--force', '--deep', '--sign', '-', app, timeout=600)
     run('codesign', '--verify', '--deep', '--strict', app)
     evidence = output.parent / 'logs'
@@ -197,7 +207,9 @@ def main():
         hidden.rename(install)
         moved.rename(app)
     revision = run('git', 'rev-parse', 'HEAD', cwd=repo).strip()
-    manifest = {'source_revision': revision, 'architecture': 'arm64', 'minimum_macos': '15.0',
+    native = json.loads((install / 'fst-build-provenance.json').read_text())
+    manifest = {'source_revision': native['source_revision'], 'packaging_revision': revision,
+                'architecture': 'arm64', 'minimum_macos': '15.0',
                 'signing': 'ad-hoc; not notarized', 'checks': ['dependency audit', 'arm64',
                 'codesign', 'relocated simulation', 'analysis rendering', 'GUI help'],
                 'files': {p.relative_to(app).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
