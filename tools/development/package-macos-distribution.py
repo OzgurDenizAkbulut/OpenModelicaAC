@@ -33,6 +33,17 @@ def dependencies(path):
             if (dep := line.strip().split(' (compatibility version', 1)[0]) not in identity]
 
 
+def rpaths(binary, app):
+    lines = run('otool', '-l', binary).splitlines()
+    result = [app / 'Contents/Frameworks']
+    for i, line in enumerate(lines):
+        if line.strip() == 'cmd LC_RPATH':
+            value = lines[i + 2].strip().removeprefix('path ').rsplit(' (offset', 1)[0]
+            result.append(Path(value.replace('@loader_path', str(binary.parent))
+                               .replace('@executable_path', str(app / 'Contents/MacOS'))))
+    return result
+
+
 def relocate(app):
     frameworks = app / 'Contents/Frameworks'
     frameworks.mkdir(exist_ok=True)
@@ -51,7 +62,18 @@ def relocate(app):
                     replacement = '@loader_path/' + os.path.relpath(compiler, binary.parent)
                     run('install_name_tool', '-change', dep, replacement, binary)
                     continue
-                if not dep.startswith('/') or dep.startswith(('/System/Library/', '/usr/lib/')):
+                original = dep
+                if dep.startswith('@rpath/'):
+                    relative = dep[7:]
+                    if any((root / relative).is_file() and (root / relative).resolve().is_relative_to(app)
+                           for root in rpaths(binary, app)):
+                        continue
+                    sources = {p.resolve() for p in Path('/opt/homebrew/opt').glob('*/lib/' + relative)
+                               if p.is_file()}
+                    if len(sources) != 1:
+                        raise RuntimeError(f'Cannot uniquely resolve {dep}: {sorted(sources)}')
+                    dep = str(sources.pop())
+                elif not dep.startswith('/') or dep.startswith(('/System/Library/', '/usr/lib/')):
                     continue
                 source = Path(dep)
                 if source.is_relative_to(app):
@@ -73,7 +95,7 @@ def relocate(app):
                             shutil.copy2(source.resolve(strict=True), target)
                         copied[target] = source.resolve()
                 replacement = '@loader_path/' + os.path.relpath(target, binary.parent)
-                run('install_name_tool', '-change', dep, replacement, binary)
+                run('install_name_tool', '-change', original, replacement, binary)
             if run('otool', '-D', binary).splitlines()[1:]:
                 run('install_name_tool', '-id', '@loader_path/' + binary.name, binary)
     return visited
@@ -87,19 +109,12 @@ def audit(app, binaries):
     for binary in sorted(binaries):
         if 'arm64' not in run('lipo', '-archs', binary):
             raise RuntimeError(f'Missing arm64 slice: {binary}')
-        lines = run('otool', '-l', binary).splitlines()
-        rpaths = []
-        for i, line in enumerate(lines):
-            if line.strip() == 'cmd LC_RPATH':
-                value = lines[i + 2].strip().removeprefix('path ').rsplit(' (offset', 1)[0]
-                rpaths.append(expand(value, binary))
+        search_paths = rpaths(binary, app)
         for dep in dependencies(binary):
             if dep.startswith(('/System/Library/', '/usr/lib/')):
                 continue
             if dep.startswith('@rpath/'):
-                candidates = [p / dep[7:] for p in rpaths]
-                # dyld inherits the main executable's framework search path.
-                candidates.append(app / 'Contents/Frameworks' / dep[7:])
+                candidates = [p / dep[7:] for p in search_paths]
             else:
                 candidates = [expand(dep, binary)]
             if not any(p.exists() and p.resolve().is_relative_to(app) for p in candidates):

@@ -33,7 +33,15 @@ jobs:
           path: build_cmake/fst-macos/install_cmake
           key: fst-macos15-arm64-v1-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'OMCompiler/**', 'OMEdit/**', 'OMPlot/**', '.gitmodules', 'tools/development/build-macos-distribution.sh') }}
       - name: Build and test native FST
-        run: bash tools/development/build-macos-distribution.sh --build-only
+        run: |
+          set -euo pipefail
+          python3 tools/development/test-macos-packaging.py
+          stamp=build_cmake/fst-macos/install_cmake/fst-build-provenance.json
+          if [ -f "$stamp" ]; then
+            native_revision=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_revision"])' "$stamp")
+            git diff --exit-code "$native_revision" HEAD -- CMakeLists.txt cmake OMCompiler OMEdit OMPlot .gitmodules tools/development/build-macos-distribution.sh
+          fi
+          bash tools/development/build-macos-distribution.sh --build-only
       - name: Preserve validated native installation
         if: steps.native-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -42,6 +50,7 @@ jobs:
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Package and validate relocated application
         run: |
+          set -euo pipefail
           build="$PWD/build_cmake/fst-macos"
           python3 tools/development/package-macos-distribution.py --install "$build/install_cmake" --output "$build/package" --qt "$(brew --prefix qt)" 2>&1 | tee "$build/logs/package.log"
           mkdir -p "$build/distribution"
