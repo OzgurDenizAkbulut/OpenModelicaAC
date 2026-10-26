@@ -174,8 +174,8 @@ def main():
     (resources / 'share/omedit/components.ini').write_text('[Components]\nLocalAutocomplete=true\nAnalysisFigures=true\n')
     licenses = resources / 'licenses'
     licenses.mkdir(exist_ok=True)
-    for path in repo.glob('*LICENSE*'):
-        if path.is_file():
+    for path in repo.iterdir():
+        if path.is_file() and any(word in path.name.upper() for word in ('LICENSE', 'COPYING', 'NOTICE')):
             shutil.copy2(path, licenses / path.name)
     for prefix in sorted(Path('/opt/homebrew/Cellar').glob('*/*')):
         for path in prefix.glob('*'):

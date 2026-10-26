@@ -31,7 +31,7 @@ import pathlib, shutil, sys
 source = pathlib.Path(sys.argv[1]).resolve().parent.parent
 shutil.copytree(source, sys.argv[2], symlinks=True)
 PY
-uv pip install --python "$runtime/bin/python3" -r OMEdit/Resources/analysis/requirements.txt packaging
+uv pip install --break-system-packages --python "$runtime/bin/python3" -r OMEdit/Resources/analysis/requirements.txt packaging
 uv pip freeze --python "$runtime/bin/python3" > "$build/logs/analysis-requirements.lock"
 python3 tools/development/stage-analysis-runtime.py --validate-runtime "$runtime"
 
