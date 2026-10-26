@@ -105,7 +105,9 @@ def relocate(app):
                 replacement = '@loader_path/' + os.path.relpath(target, binary.parent)
                 run('install_name_tool', '-change', original, replacement, binary)
             if run('otool', '-D', binary).splitlines()[1:]:
-                run('install_name_tool', '-id', '@loader_path/' + binary.name, binary)
+                # Generated simulations copy this ID into their own load commands.
+                relative = binary.relative_to(frameworks).as_posix() if binary.is_relative_to(frameworks) else binary.name
+                run('install_name_tool', '-id', '@rpath/' + relative, binary)
     return visited
 
 
