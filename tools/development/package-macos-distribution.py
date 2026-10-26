@@ -78,6 +78,14 @@ def relocate(app):
                 source = Path(dep)
                 if source.is_relative_to(app):
                     target = source
+                elif not source.exists():
+                    candidates = {p.resolve() for p in (app / 'Contents/Resources/lib').rglob(source.name)
+                                  if p.is_file()}
+                    if (frameworks / source.name).is_file():
+                        candidates.add((frameworks / source.name).resolve())
+                    if not candidates or len({hashlib.sha256(p.read_bytes()).digest() for p in candidates}) != 1:
+                        raise RuntimeError(f'No unambiguous installed replacement for {dep}: {sorted(candidates)}')
+                    target = sorted(candidates)[0]
                 else:
                     if '.framework/' in dep:
                         root, relative = dep.split('.framework/', 1)
