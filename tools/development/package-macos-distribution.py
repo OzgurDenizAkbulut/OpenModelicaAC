@@ -102,6 +102,7 @@ def relocate(app):
 
 
 def audit(app, binaries):
+    app = app.resolve(strict=True)
     executable_dir = app / 'Contents/MacOS'
     def expand(value, binary):
         return Path(value.replace('@loader_path', str(binary.parent))
