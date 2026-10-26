@@ -34,6 +34,7 @@ PY
 uv pip install --break-system-packages --python "$runtime/bin/python3" -r OMEdit/Resources/analysis/requirements.txt packaging
 uv pip freeze --python "$runtime/bin/python3" > "$build/logs/analysis-requirements.lock"
 python3 tools/development/stage-analysis-runtime.py --validate-runtime "$runtime"
+cmake -P tools/development/test-macos-architecture.cmake
 
 cmake -S . -B "$build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$build/install_cmake" \
