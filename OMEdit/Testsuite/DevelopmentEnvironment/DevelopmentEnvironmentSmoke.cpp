@@ -133,6 +133,9 @@ int main(int argc, char **argv)
   QTimer::singleShot(0, &app, [&app, output, &isolatedSettings]() {
     try {
       require(MainWindow::instance()->isTestsuiteRunning(), "real OMEdit application initialized in testsuite mode");
+      require(Helper::applicationName == QStringLiteral(OMEDIT_APPLICATION_NAME)
+              && MainWindow::instance()->windowTitle().contains(Helper::applicationName),
+              "main window displays the configured product name");
       OMCProxy *compiler = MainWindow::instance()->getOMCProxy();
       auto hasUnknownFlag = []() {
         return MessagesWidget::instance()->getAllMessageWidget()->getMessagesTextBrowser()->toPlainText()
@@ -140,6 +143,29 @@ int main(int argc, char **argv)
       };
       require(!hasUnknownFlag(), "startup has no unknown debug flag error");
       require(compiler->clearCommandLineOptions() && !hasUnknownFlag(), "clearing options does not reintroduce unsupported GUI flag");
+      if (qEnvironmentVariableIsSet("OMEDIT_SMOKE_NO_AUTOCOMPLETE")) {
+        auto *options = OptionsDialog::instance();
+        require(!LocalCompletionSettings::available(), "installer deselection disables local autocomplete");
+        require(!options->getAutocompletePage()->isEnabled(), "uninstalled autocomplete page is disabled");
+        LocalCompletionSettings requested;
+        requested.enabled = true;
+        options->getAutocompletePage()->setSettings(requested);
+        require(!options->getAutocompletePage()->settings().enabled, "saved or requested enable cannot bypass component selection");
+        auto *settings = Utilities::getApplicationSettings();
+        settings->setValue("localAutocomplete/enabled", true);
+        options->saveSettings();
+        require(settings->value("localAutocomplete/enabled").toBool(), "uninstalled component preserves saved autocomplete preferences");
+        QTcpServer server;
+        require(server.listen(QHostAddress::LocalHost), "component-selection probe listens on loopback");
+        requested.endpoint = QString("http://127.0.0.1:%1/v1").arg(server.serverPort());
+        LocalCompletionClient client;
+        QSignalSpy failed(&client, &LocalCompletionClient::requestFailed);
+        client.requestCompletion("model PrivateSource", "end PrivateSource;", requested);
+        require(failed.wait(1000) && !server.hasPendingConnections(), "uninstalled component sends no completion requests");
+        qInfo("SMOKE PASSED");
+        app.exit(0);
+        return;
+      }
       if (qEnvironmentVariableIsSet("OMEDIT_SMOKE_LMSTUDIO")) {
         LocalCompletionClient client;
         QSignalSpy connected(&client, &LocalCompletionClient::connectionChecked);

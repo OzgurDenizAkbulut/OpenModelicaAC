@@ -1,4 +1,5 @@
 #include <windows.h>
+#include "omedit_config.h"
 
 VS_VERSION_INFO   VERSIONINFO
 BEGIN
@@ -11,11 +12,11 @@ BEGIN
     BLOCK   "040904b0"
     BEGIN
       VALUE   "CompanyName",      "Open Source Modelica Consortium (OSMC)\0"
-      VALUE   "FileDescription",  "OMEdit\0"
+      VALUE   "FileDescription",  OMEDIT_APPLICATION_NAME "\0"
       VALUE   "FileVersion",      "0.0.0.0\0"
       VALUE   "InternalName",     "OMEdit\0"
       VALUE   "OriginalFilename", "OMEdit.exe\0"
-      VALUE   "ProductName",      "OMEdit - OpenModelica Connection Editor\0"
+      VALUE   "ProductName",      OMEDIT_APPLICATION_NAME " - OpenModelica Connection Editor\0"
       VALUE   "ProductVersion",   "0.0.0.0\0"
     END
   END

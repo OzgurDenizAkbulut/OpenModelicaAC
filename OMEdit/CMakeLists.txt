@@ -12,7 +12,8 @@ omc_option(OM_OMEDIT_ENABLE_ANIMATION "Enable the 3D animation windows. Needs Qt
 omc_option(OM_OMEDIT_DEVELOPMENT_PROFILE "Use a separate OMEdit development identity and enable local autocomplete by default." OFF)
 
 if(OM_OMEDIT_DEVELOPMENT_PROFILE)
-  set(OMEDIT_DEFAULT_APPLICATION_NAME "OMEdit AC (Development)")
+  set(OMEDIT_DEFAULT_APPLICATION_NAME "OpenModelica_FST (Development)")
+  # Retain the existing preferences when changing the product name.
   set(OMEDIT_DEFAULT_SETTINGS_ORGANIZATION "openmodelica-ac")
   set(OMEDIT_DEFAULT_SETTINGS_APPLICATION "omedit-development")
 else()

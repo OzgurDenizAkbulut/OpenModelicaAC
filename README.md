@@ -1,4 +1,9 @@
-# OpenModelica [![License: OSMC-PL](https://img.shields.io/badge/license-OSMC--PL-lightgrey.svg)](OSMC-License.txt)
+# OpenModelica_FST [![License: OSMC-PL](https://img.shields.io/badge/license-OSMC--PL-lightgrey.svg)](OSMC-License.txt)
+
+OpenModelica_FST is the customized OpenModelica development project with local LLM
+autocomplete and interactive analysis figures. See the
+[Windows installer guide](doc/OpenModelica_FST-Windows-installer.md) for setup.
+The workspace directory retains its existing name to preserve configured builds.
 
 [OpenModelica](https://openmodelica.org) is an open-source Modelica-based modeling and
 simulation environment intended for industrial and academic usage.

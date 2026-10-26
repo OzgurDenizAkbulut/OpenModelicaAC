@@ -37,10 +37,20 @@
 #define LOCALCOMPLETIONSETTINGS_H
 
 #include <QString>
+#include <QCoreApplication>
+#include <QSettings>
 #include <cmath>
 
 struct LocalCompletionSettings
 {
+  static bool available()
+  {
+    static const bool installed = QSettings(QCoreApplication::applicationDirPath()
+      + QStringLiteral("/../share/omedit/components.ini"), QSettings::IniFormat)
+      .value(QStringLiteral("Components/LocalAutocomplete"), true).toBool();
+    return installed;
+  }
+
   bool enabled = false;
   bool automatic = true;
   QString endpoint = QStringLiteral("http://127.0.0.1:11434/v1");
@@ -63,6 +73,7 @@ struct LocalCompletionSettings
   LocalCompletionSettings normalized() const
   {
     LocalCompletionSettings result = *this;
+    result.enabled = enabled && available();
     result.debounceMs = qBound(50, debounceMs, 2000);
     result.timeoutMs = qBound(1, timeoutMs, 60000);
     result.maxLines = qBound(1, maxLines, 50);

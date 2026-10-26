@@ -1,4 +1,4 @@
-# OMEdit 1.28 development workflow
+# OpenModelica_FST 1.28 development workflow
 
 This is the operational handoff for the [agreed development plan](OMEdit-1.28-development-plan.md).
 The matching source-built compiler and development GUI are installed. Core,
@@ -348,7 +348,7 @@ use the candidate install and the toolchain recorded by the install manifest.
 It constructs a restricted runtime environment and restores the invoking shell's
 environment after launching OMEdit.
 
-The application displays **OMEdit AC (Development)**. Preferences use
+The application displays **OpenModelica_FST (Development)**. Preferences retain
 `openmodelica-ac/omedit-development.ini`; temporary files use the
 `omedit-development` child of the normal OMEdit temporary directory. Official
 OMEdit preferences are not imported. Local autocomplete defaults to enabled,
@@ -397,6 +397,13 @@ separate installed-manifest comparison.
 The standalone startup probe accepts `-ExpectedCompilerRevision` for its
 communication-log check; its default is the configured `40d9aae9b8` base.
 
+The 2026-10-26 OpenModelica_FST rebuild refreshed the compiler version to
+`v1.28.0-dev.1493+g6d31d8c9cb.cmake`. For this candidate, pass
+`--expected-revision 6d31d8c9cb` to direct `test-development.py` calls and
+`-ExpectedCompilerRevision 6d31d8c9cb` to the standalone startup probe.
+Installer acceptance derives its compiler expectation from the packaged source
+commit; the earlier verification records below retain their original versions.
+
 For a future baseline update, preserve/review local autocomplete changes, select
 the source revision and submodule pins deliberately, prepare a fresh candidate
 build location, then rebuild and repeat acceptance before changing the adopted
@@ -408,9 +415,10 @@ neither option updates sources, rebuilds binaries or substitutes for validation.
 Refresh the installed manifest after local commits. Change the compiler-version
 default only when adopting and validating a different upstream source base.
 
-Windows installer creation is the next milestone. No installer, file-association
-change, macOS distribution or macOS packaging has been delivered by this work.
-The Windows source build and Qt deployment are not evidence of macOS readiness.
+The Windows development installer now has a separate
+[packaging and acceptance workflow](OpenModelica_FST-Windows-installer.md).
+It preserves existing file associations. macOS distribution and packaging remain
+future work; Windows deployment is not evidence of macOS readiness.
 
 ## Verification record
 

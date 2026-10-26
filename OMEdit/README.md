@@ -39,8 +39,9 @@ For the validated Windows 1.28 environment, see the
 validation and launch commands in the same guide.
 
 Configure a fresh top-level build with `-DOM_OMEDIT_DEVELOPMENT_PROFILE=ON`
-and a separate `CMAKE_INSTALL_PREFIX` to build **OMEdit AC (Development)**.
-Its preferences use `openmodelica-ac/omedit-development.ini`, and its temporary
+and a separate `CMAKE_INSTALL_PREFIX` to build **OpenModelica_FST (Development)**.
+Its preferences retain `openmodelica-ac/omedit-development.ini` for compatibility
+with the former OMEdit AC name, and its temporary
 files use a separate `omedit-development` directory under the normal OMEdit
 temporary directory. Official OMEdit preferences are not imported.
 

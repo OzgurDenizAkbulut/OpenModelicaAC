@@ -186,6 +186,10 @@ void LocalCompletionClient::start(const LocalCompletionSettings &settings, const
 {
   mSettings = settings.normalized();
   mRequestKind = kind;
+  if (!LocalCompletionSettings::available()) {
+    queueFailure(tr("Local autocomplete is not installed."));
+    return;
+  }
   const bool connectionTest = kind != Completion;
   QUrl url;
   QString error;

@@ -3648,6 +3648,9 @@ void OptionsDialog::readAutocompleteSettings()
 
 void OptionsDialog::saveAutocompleteSettings()
 {
+  if (!LocalCompletionSettings::available()) {
+    return;
+  }
   const LocalCompletionSettings settings = mpAutocompletePage->settings();
   mpSettings->setValue("localAutocomplete/enabled", settings.enabled);
   mpSettings->setValue("localAutocomplete/automatic", settings.automatic);
@@ -3876,6 +3879,10 @@ AutocompletePage::AutocompletePage(QWidget *pParent)
   connect(mpModelComboBox, &QComboBox::editTextChanged, this, &AutocompletePage::cancelTest);
   connect(mpShortcutEdit, &QKeySequenceEdit::keySequenceChanged, this, &AutocompletePage::cancelTest);
   connect(mpTimeoutSpinBox, &QSpinBox::valueChanged, this, &AutocompletePage::cancelTest);
+  if (!LocalCompletionSettings::available()) {
+    setEnabled(false);
+    cancelTest();
+  }
 }
 
 LocalCompletionSettings AutocompletePage::settings() const
@@ -4073,7 +4080,8 @@ void AutocompletePage::cancelTest()
   mpClient->cancel();
   mpTestButton->setEnabled(true);
   mpRefreshModelsButton->setEnabled(true);
-  mpStatusLabel->setText(QString());
+  mpStatusLabel->setText(LocalCompletionSettings::available() ? QString()
+    : tr("Local autocomplete is not installed. Select it when reinstalling OpenModelica_FST."));
 }
 
 CodeColorsWidget::CodeColorsWidget(QWidget *pParent)

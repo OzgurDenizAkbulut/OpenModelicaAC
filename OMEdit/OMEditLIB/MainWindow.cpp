@@ -5051,8 +5051,8 @@ void MainWindow::createActions()
   mpOMSimulatorUsersGuideAction->setStatusTip(tr("Opens the OMSimulator User's Guide"));
   connect(mpOMSimulatorUsersGuideAction, SIGNAL(triggered()), SLOT(openOMSimulatorUsersGuide()));
   // about OMEdit action
-  mpAboutOMEditAction = new QAction(tr("About OMEdit"), this);
-  mpAboutOMEditAction->setStatusTip(tr("Information about OMEdit"));
+  mpAboutOMEditAction = new QAction(tr("About %1").arg(Helper::applicationName), this);
+  mpAboutOMEditAction->setStatusTip(tr("Information about %1").arg(Helper::applicationName));
   mpAboutOMEditAction->setMenuRole(QAction::AboutRole);
   connect(mpAboutOMEditAction, SIGNAL(triggered()), SLOT(openAboutOMEdit()));
   /* Toolbar Actions */
